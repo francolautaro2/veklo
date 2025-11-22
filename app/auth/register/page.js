@@ -1,0 +1,117 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+export default function RegisterPage() {
+  const router = useRouter();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Error al registrarse.");
+        setLoading(false);
+        return;
+      }
+
+      // Por ahora, después de registrar mandamos al login
+      router.push("/auth/login");
+    } catch (err) {
+      console.error(err);
+      setError("Error inesperado. Intentalo de nuevo.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <h2 className="text-xl font-semibold tracking-tight mb-2">
+        Crear cuenta
+      </h2>
+      <p className="text-xs text-slate-400 mb-6">
+        Empezá a centralizar la gestión de tus hoteles en minutos.
+      </p>
+
+      {error && (
+        <div className="mb-4 text-xs text-red-300 bg-red-900/30 border border-red-800 rounded-lg px-3 py-2">
+          {error}
+        </div>
+      )}
+
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-1">
+          <label className="text-xs text-slate-300">Nombre completo</label>
+          <input
+            type="text"
+            className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            placeholder="Juan Pérez"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-slate-300">Email</label>
+          <input
+            type="email"
+            className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            placeholder="tu@hotel.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-slate-300">Contraseña</label>
+          <input
+            type="password"
+            className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            placeholder="Mínimo 8 caracteres"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full mt-2 px-4 py-2.5 rounded-lg bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {loading ? "Creando cuenta..." : "Crear cuenta"}
+        </button>
+      </form>
+
+      <div className="mt-4 text-xs text-slate-400 flex items-center justify-between">
+        <span>¿Ya tenés cuenta?</span>
+        <Link
+          href="/auth/login"
+          className="text-emerald-400 hover:text-emerald-300"
+        >
+          Iniciar sesión
+        </Link>
+      </div>
+    </>
+  );
+}
