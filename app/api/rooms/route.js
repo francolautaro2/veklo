@@ -3,11 +3,44 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Room from "@/models/Room";
 import Property from "@/models/Property";
-import { getUserFromRequest } from "@/lib/auth";
+import User from "@/models/User";
+import { getUserContextFromRequest } from "@/lib/auth";
+import {
+  getAccessDeniedMessage,
+  getPlanConfig,
+  getRoomLimitMessage,
+  hasAccountAccess,
+} from "@/lib/subscription";
+
+function buildPropertyScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
+function buildRoomScope(user) {
+  if (!user.organizationId) {
+    return {};
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false } },
+    ],
+  };
+}
 
 export async function GET(request) {
   await dbConnect();
-  const user = getUserFromRequest(request);
+  const user = await getUserContextFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
@@ -16,10 +49,11 @@ export async function GET(request) {
   const propertyId = searchParams.get("propertyId");
 
   // Propiedades del usuario
-  const userProperties = await Property.find({ ownerId: user.id }).select("_id");
+  const userProperties = await Property.find(buildPropertyScope(user)).select("_id");
   const allowedPropertyIds = userProperties.map((p) => p._id.toString());
 
   const filter = {
+    ...buildRoomScope(user),
     propertyId: { $in: allowedPropertyIds },
   };
 
@@ -39,9 +73,23 @@ export async function GET(request) {
 
 export async function POST(request) {
   await dbConnect();
-  const user = getUserFromRequest(request);
+  const user = await getUserContextFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+  }
+
+  const account = await User.findById(user.id).select(
+    "plan subscriptionStatus trialEndsAt"
+  );
+  if (!account) {
+    return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
+  }
+
+  if (!hasAccountAccess(account)) {
+    return NextResponse.json(
+      { error: getAccessDeniedMessage() },
+      { status: 402 }
+    );
   }
 
   const { propertyId, name, capacity, basePrice } = await request.json();
@@ -56,7 +104,7 @@ export async function POST(request) {
   // Validar que la propiedad sea del usuario
   const property = await Property.findOne({
     _id: propertyId,
-    ownerId: user.id,
+    ...buildPropertyScope(user),
   });
 
   if (!property) {
@@ -66,8 +114,26 @@ export async function POST(request) {
     );
   }
 
+  const planConfig = getPlanConfig(account.plan);
+  if (planConfig.maxRoomsPerProperty != null) {
+    const roomCount = await Room.countDocuments({ propertyId });
+    if (roomCount >= planConfig.maxRoomsPerProperty) {
+      return NextResponse.json(
+        { error: getRoomLimitMessage(account.plan) },
+        { status: 403 }
+      );
+    }
+  }
+
   try {
+    if (!property.organizationId && user.organizationId) {
+      property.organizationId = user.organizationId;
+      await property.save();
+    }
+
     const room = await Room.create({
+      organizationId:
+        user.organizationId || property.organizationId?.toString() || null,
       propertyId,
       name,
       capacity: capacity || 2,
@@ -75,10 +141,7 @@ export async function POST(request) {
     });
 
     return NextResponse.json({ room }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json(
-      { error: "Error al crear habitación.", details: err.message },
-      { status: 400 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Error al crear habitación." }, { status: 400 });
   }
 }

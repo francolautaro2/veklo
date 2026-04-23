@@ -1,27 +1,293 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&display=swap");
+@import "tailwindcss";
 @plugin "daisyui";
+
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --vk-bg-canvas: 12 12 12;
+  --vk-bg-surface: 20 20 20;
+  --vk-bg-elevated: 28 28 28;
+  --vk-bg-muted: 37 37 37;
+
+  --vk-border-soft: 67 63 59;
+
+  --vk-text-strong: 240 237 232;
+  --vk-text-base: 225 219 211;
+  --vk-text-muted: 156 150 144;
+  --vk-text-subtle: 127 121 115;
+
+  --vk-accent: 249 115 22;
+  --vk-accent-strong: 234 106 0;
+  --vk-accent-soft: 245 158 11;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --vk-bg-canvas: 252 250 247;
+  --vk-bg-surface: 247 242 236;
+  --vk-bg-elevated: 239 232 224;
+  --vk-bg-muted: 228 219 208;
+
+  --vk-border-soft: 210 198 186;
+
+  --vk-text-strong: 33 27 22;
+  --vk-text-base: 67 56 46;
+  --vk-text-muted: 113 97 83;
+  --vk-text-subtle: 141 123 107;
+
+  --vk-accent: 234 106 0;
+  --vk-accent-strong: 194 65 12;
+  --vk-accent-soft: 180 83 9;
+}
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 antialiased;
+    background-color: rgb(var(--vk-bg-canvas));
+    color: rgb(var(--vk-text-strong));
+    font-family: var(--font-veklo-body), "DM Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
 
-  input:not([type="checkbox"]):not([type="radio"]),
-  textarea {
-    @apply w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100
-           outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500;
-  }
+/* Neutral palette remap for existing Tailwind classes */
+.bg-slate-950 {
+  background-color: rgb(var(--vk-bg-canvas)) !important;
+}
 
-  select {
-    @apply w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-slate-100
-           outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
-           appearance-none pr-8;
-  }
+.bg-slate-950\/85,
+.bg-slate-950\/80,
+.bg-slate-950\/70 {
+  background-color: rgba(var(--vk-bg-canvas), 0.9) !important;
+}
 
-  label {
-    @apply text-[11px] text-slate-300;
-  }
+.bg-slate-950\/60 {
+  background-color: rgba(var(--vk-bg-canvas), 0.82) !important;
+}
+
+.bg-slate-900 {
+  background-color: rgb(var(--vk-bg-elevated)) !important;
+}
+
+.bg-slate-900\/80,
+.bg-slate-900\/70,
+.bg-slate-900\/60 {
+  background-color: rgba(var(--vk-bg-surface), 0.92) !important;
+}
+
+.bg-slate-900\/20 {
+  background-color: rgba(var(--vk-bg-surface), 0.45) !important;
+}
+
+.bg-slate-800 {
+  background-color: rgb(var(--vk-bg-muted)) !important;
+}
+
+.bg-slate-800\/60 {
+  background-color: rgba(var(--vk-bg-muted), 0.82) !important;
+}
+
+.bg-slate-700 {
+  background-color: rgba(var(--vk-bg-muted), 0.92) !important;
+}
+
+.border-slate-900,
+.border-slate-900\/60,
+.border-slate-800,
+.border-slate-700 {
+  border-color: rgb(var(--vk-border-soft)) !important;
+}
+
+.text-slate-50,
+.text-slate-100,
+.text-slate-200 {
+  color: rgb(var(--vk-text-strong)) !important;
+}
+
+.text-slate-300 {
+  color: rgb(var(--vk-text-base)) !important;
+}
+
+.text-slate-400 {
+  color: rgb(var(--vk-text-muted)) !important;
+}
+
+.text-slate-500 {
+  color: rgb(var(--vk-text-subtle)) !important;
+}
+
+.text-slate-900,
+.text-slate-950 {
+  color: rgb(23 18 13) !important;
+}
+
+.hover\:bg-slate-900:hover {
+  background-color: rgb(var(--vk-bg-elevated)) !important;
+}
+
+.hover\:bg-slate-900\/70:hover {
+  background-color: rgba(var(--vk-bg-elevated), 0.92) !important;
+}
+
+.hover\:bg-slate-900\/60:hover {
+  background-color: rgba(var(--vk-bg-elevated), 0.88) !important;
+}
+
+.hover\:bg-slate-800:hover,
+.hover\:bg-slate-700:hover {
+  background-color: rgb(var(--vk-bg-muted)) !important;
+}
+
+.hover\:border-slate-800:hover {
+  border-color: rgb(var(--vk-border-soft)) !important;
+}
+
+.hover\:text-white:hover,
+.hover\:text-slate-100:hover {
+  color: rgb(var(--vk-text-strong)) !important;
+}
+
+/* Brand accent remap (emerald -> veklo orange) */
+.text-emerald-200,
+.text-emerald-300,
+.text-emerald-400,
+.text-emerald-500 {
+  color: rgb(var(--vk-accent)) !important;
+}
+
+.bg-emerald-300,
+.bg-emerald-400,
+.bg-emerald-500 {
+  background-color: rgb(var(--vk-accent)) !important;
+}
+
+.hover\:bg-emerald-400:hover,
+.hover\:bg-emerald-500:hover {
+  background-color: rgb(var(--vk-accent-strong)) !important;
+}
+
+.bg-emerald-900\/20 {
+  background-color: rgba(var(--vk-accent), 0.14) !important;
+}
+
+.bg-emerald-500\/10,
+.bg-emerald-500\/15,
+.bg-emerald-500\/20 {
+  background-color: rgba(var(--vk-accent), 0.16) !important;
+}
+
+.hover\:bg-emerald-500\/30:hover {
+  background-color: rgba(var(--vk-accent), 0.24) !important;
+}
+
+.hover\:text-emerald-300:hover {
+  color: rgb(var(--vk-accent)) !important;
+}
+
+.border-emerald-800,
+.border-emerald-700,
+.border-emerald-700\/60,
+.border-emerald-500\/70,
+.border-emerald-500\/40,
+.border-emerald-500\/30,
+.border-emerald-700\/40 {
+  border-color: rgba(var(--vk-accent), 0.42) !important;
+}
+
+.focus\:border-emerald-500:focus {
+  border-color: rgb(var(--vk-accent)) !important;
+}
+
+.focus\:ring-emerald-500:focus {
+  --tw-ring-color: rgb(var(--vk-accent)) !important;
+}
+
+.shadow-emerald-500\/5 {
+  --tw-shadow-color: rgba(var(--vk-accent), 0.2) !important;
+}
+
+/* Secondary accent remap (sky -> amber/orange family) */
+.text-sky-300 {
+  color: rgb(var(--vk-accent-soft)) !important;
+}
+
+.bg-sky-500\/10,
+.bg-sky-500\/20 {
+  background-color: rgba(var(--vk-accent-soft), 0.15) !important;
+}
+
+.hover\:bg-sky-500\/30:hover {
+  background-color: rgba(var(--vk-accent-soft), 0.24) !important;
+}
+
+/* Keep warning tones aligned with brand */
+.text-amber-200,
+.text-amber-300,
+.text-yellow-300 {
+  color: rgb(var(--vk-accent-soft)) !important;
+}
+
+.bg-amber-500\/10,
+.bg-yellow-500\/10,
+.bg-yellow-900\/20 {
+  background-color: rgba(var(--vk-accent-soft), 0.18) !important;
+}
+
+.border-yellow-800,
+.border-amber-500\/40 {
+  border-color: rgba(var(--vk-accent-soft), 0.44) !important;
+}
+
+/* Preserve clear danger semantic colors */
+.text-red-200,
+.text-red-300 {
+  color: rgb(252 165 165) !important;
+}
+
+.bg-red-900\/30,
+.bg-red-900\/25,
+.bg-red-900\/20 {
+  background-color: rgba(127, 29, 29, 0.28) !important;
+}
+
+.bg-red-500\/20 {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+}
+
+.bg-red-500\/10 {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+.hover\:bg-red-500\/30:hover {
+  background-color: rgba(239, 68, 68, 0.26) !important;
+}
+
+.hover\:bg-red-900\/20:hover {
+  background-color: rgba(127, 29, 29, 0.34) !important;
+}
+
+.border-red-800,
+.border-red-700,
+.border-red-700\/60 {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+.text-rose-200,
+.text-rose-300 {
+  color: rgb(251 113 133) !important;
+}
+
+.bg-rose-500\/10 {
+  background-color: rgba(244, 63, 94, 0.12) !important;
+}
+
+.border-rose-500\/40 {
+  border-color: rgba(244, 63, 94, 0.4) !important;
+}
+
+/* Better shadow tone in light mode */
+html[data-theme="light"] .shadow-black\/30,
+html[data-theme="light"] .shadow-black\/20 {
+  --tw-shadow-color: rgba(153, 130, 104, 0.25) !important;
 }

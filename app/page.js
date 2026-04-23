@@ -1,388 +1,557 @@
-// app/page.js
 import Link from "next/link";
+import BrandLogo from "@/app/_components/brand-logo";
+import styles from "./landing.module.css";
+
+const features = [
+  {
+    icon: "📅",
+    title: "Reservas sin solapamiento",
+    description:
+      "Creá y gestioná reservas con validación automática. Nunca más dos huéspedes en la misma habitación el mismo día.",
+  },
+  {
+    icon: "✅",
+    title: "Pre check-in digital",
+    description:
+      "Mandás un link al huésped antes de que llegue. Él carga sus datos y vos los ves en el panel, sin papeles ni demoras.",
+  },
+  {
+    icon: "📊",
+    title: "Dashboard en tiempo real",
+    description:
+      "Ocupación, check-ins del día, tendencias y resumen general. Todo de un vistazo y siempre actualizado.",
+  },
+  {
+    icon: "💳",
+    title: "Cobros con MercadoPago",
+    description:
+      "Aceptá pagos y señas directamente desde la plataforma con integración nativa y gestión centralizada.",
+  },
+  {
+    icon: "🔗",
+    title: "Sync con Booking y Airbnb",
+    description:
+      "Sincronizá disponibilidad vía iCal con Booking.com y Airbnb para evitar overbooking entre plataformas.",
+  },
+  {
+    icon: "📩",
+    title: "Emails automáticos",
+    description:
+      "Confirmaciones de reserva, recordatorios de pre check-in y avisos claves enviados de forma automática.",
+  },
+];
+
+const plans = [
+  {
+    name: "Pro",
+    amount: "49.900",
+    period: "ARS / mes",
+    description:
+      "Ideal para propietarios con una sola propiedad que quieren ordenar su operación.",
+    items: [
+      "1 propiedad",
+      "Habitaciones ilimitadas",
+      "Reservas ilimitadas",
+      "Pre check-in digital",
+      "Dashboard con métricas",
+      "Emails automáticos",
+      "Integración MercadoPago",
+      "Soporte por email",
+    ],
+    href: "/auth/register?plan=pro",
+    cta: "Empezar prueba gratis",
+  },
+  {
+    name: "Plus",
+    amount: "89.000",
+    period: "ARS / mes",
+    description:
+      "Para quienes gestionan múltiples propiedades y necesitan todo centralizado.",
+    items: [
+      "Hasta 5 propiedades",
+      "Habitaciones ilimitadas",
+      "Reservas ilimitadas",
+      "Pre check-in digital",
+      "Dashboard avanzado + exportar",
+      "Emails automáticos",
+      "Integración MercadoPago",
+      "Sync iCal con Booking y Airbnb",
+      "Reportes de ingresos",
+      "Soporte prioritario por WhatsApp",
+    ],
+    href: "/auth/register?plan=plus",
+    cta: "Empezar prueba gratis →",
+    featured: true,
+  },
+];
+
+const testimonials = [
+  {
+    quote:
+      "Antes usaba planillas y WhatsApp para todo. Con veklo tardé una semana en ordenar la operación.",
+    name: "Marcela R.",
+    role: "Complejo de cabañas · Bariloche",
+  },
+  {
+    quote:
+      "Tengo 3 propiedades y era un caos coordinar todo. Ahora veo todo desde un solo lugar y sin sobreventas.",
+    name: "Javier M.",
+    role: "Apart-hotel · Mendoza",
+  },
+  {
+    quote:
+      "El sistema es intuitivo y el soporte responde rápido. En dos días ya lo tenía funcionando.",
+    name: "Carolina P.",
+    role: "Hostería boutique · Salta",
+  },
+];
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col bg-slate-950 text-slate-50">
-      {/* Navbar */}
-      <header className="border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 font-bold">
-              GF
-            </div>
-            <span className="font-semibold tracking-tight">
-              GestionFast
-            </span>
-          </div>
-
-          <nav className="flex items-center gap-4 text-sm text-slate-300">
-            <a href="#features" className="hover:text-white transition-colors">
-              Features
-            </a>
-            <a href="#pricing" className="hover:text-white transition-colors">
-              Precios
-            </a>
-            <a href="#ayuda" className="hover:text-white transition-colors">
-              Ayuda
-            </a>
-            <Link
-              href="/auth/login"
-              className="ml-4 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm font-medium transition-colors"
-            >
-              Iniciar sesión
+    <main className={styles.page}>
+      <header className={styles.nav}>
+        <div className={styles.container}>
+          <div className={styles.navInner}>
+            <Link href="/" aria-label="Ir al inicio de veklo">
+              <BrandLogo size="sm" className={styles.brandText} textClassName={styles.brandText} />
             </Link>
-          </nav>
+
+            <nav>
+              <ul className={styles.navLinks}>
+                <li>
+                  <a href="#features">Funciones</a>
+                </li>
+                <li>
+                  <a href="#como-funciona">Cómo funciona</a>
+                </li>
+                <li>
+                  <a href="#precios">Precios</a>
+                </li>
+              </ul>
+            </nav>
+
+            <div className={styles.navActions}>
+              <Link href="/auth/login" className={styles.linkGhost}>
+                Iniciar sesión
+              </Link>
+              <a href="#precios" className={styles.btnNav}>
+                Empezar gratis →
+              </a>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="border-b border-slate-900 bg-slate-950/80 min-h-screen">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="min-h-[calc(100vh-72px)] flex items-center py-16 md:py-24 lg:py-28">
-            <div className="grid md:grid-cols-2 gap-12 items-center w-full mt-6 md:mt-16">
-              {/* Texto */}
-              <div>
-                <span className="inline-flex items-center text-xs font-medium px-2 py-1 rounded-full border border-emerald-500/40 text-emerald-300 mb-4">
-                  SaaS para hoteles, cabañas y casas
-                </span>
-                <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">
-                  Toda la gestión de tu hotel{" "}
-                  <span className="text-emerald-400">en la palma de tu mano.</span>
-                </h1>
-                <p className="text-slate-300 text-sm md:text-base mb-6 max-w-xl">
-                  Cargá tus propiedades, administrá habitaciones y controlá el
-                  check-in / check-out desde un solo lugar. Pensado para hoteleros
-                  que necesitan simplicidad y escalabilidad.
-                </p>
+      <section className={styles.hero}>
+        <div className={styles.container}>
+          <div className={styles.heroGrid}>
+            <div>
+              <span className={styles.tag}>Nuevo en Argentina</span>
+              <h1 className={styles.heroTitle}>
+                Tu alojamiento,
+                <br />
+                <span className={styles.accent}>sin el caos</span>
+                <br />
+                de siempre.
+              </h1>
+              <p className={styles.heroSub}>
+                Gestioná reservas, check-ins y habitaciones desde un solo panel.
+                Sin Excel, sin WhatsApp desbordado y sin errores.
+              </p>
 
-                <div className="flex flex-wrap items-center gap-3 mb-6">
-                  <Link
-                    href="/auth/register"
-                    className="px-5 py-2.5 rounded-lg bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors"
-                  >
-                    Crear cuenta gratis
-                  </Link>
-                  <Link
-                    href="/dashboard"
-                    className="px-5 py-2.5 rounded-lg border border-slate-700 text-sm text-slate-200 hover:bg-slate-900 transition-colors"
-                  >
-                    Ver demo
-                  </Link>
-                </div>
-
-                <p className="text-xs text-slate-400">
-                  Sin tarjeta de crédito · Ideal para hoteles pequeños y medianos
-                </p>
+              <div className={styles.heroCta}>
+                <Link href="/auth/register" className={styles.btnPrimary}>
+                  Probalo gratis 14 días
+                  <span aria-hidden>→</span>
+                </Link>
+                <a href="#como-funciona" className={styles.btnGhost}>
+                  Ver cómo funciona ↓
+                </a>
               </div>
 
-              {/* Tarjeta “mock” del dashboard */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl shadow-emerald-500/5">
-                <p className="text-xs font-medium text-slate-400 mb-3">
-                  Vista rápida del panel
-                </p>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="bg-slate-900 rounded-xl p-3">
-                    <p className="text-[10px] text-slate-400">Ocupación</p>
-                    <p className="text-xl font-semibold text-emerald-400">82%</p>
-                  </div>
-                  <div className="bg-slate-900 rounded-xl p-3">
-                    <p className="text-[10px] text-slate-400">Check-in hoy</p>
-                    <p className="text-xl font-semibold text-slate-100">12</p>
-                  </div>
-                  <div className="bg-slate-900 rounded-xl p-3">
-                    <p className="text-[10px] text-slate-400">Check-out hoy</p>
-                    <p className="text-xl font-semibold text-slate-100">9</p>
-                  </div>
+              <p className={styles.heroNote}>
+                Sin tarjeta de crédito. Cancelá cuando quieras.
+              </p>
+            </div>
+
+            <div className={styles.heroVisual}>
+              <div className={styles.dashboardMockup}>
+                <div className={styles.mockTopbar}>
+                  <span className={`${styles.mockDot} ${styles.mockDotRed}`} />
+                  <span className={`${styles.mockDot} ${styles.mockDotAmber}`} />
+                  <span className={`${styles.mockDot} ${styles.mockDotGreen}`} />
+                  <span className={styles.mockTitle}>veklo · dashboard</span>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>Hotel Miramar</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300">
-                      95% ocupado
-                    </span>
+                <div className={styles.mockBody}>
+                  <div className={styles.mockStats}>
+                    <div className={styles.mockStat}>
+                      <p className={styles.mockStatLabel}>Ocupación</p>
+                      <p
+                        className={`${styles.mockStatValue} ${styles.mockStatValueAccent}`}
+                      >
+                        87%
+                      </p>
+                    </div>
+                    <div className={styles.mockStat}>
+                      <p className={styles.mockStatLabel}>Check-ins hoy</p>
+                      <p className={styles.mockStatValue}>4</p>
+                    </div>
+                    <div className={styles.mockStat}>
+                      <p className={styles.mockStatLabel}>Reservas</p>
+                      <p className={styles.mockStatValue}>12</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>Cabañas del Lago</span>
-                    <span className="px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-300">
-                      68% ocupado
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-300">
-                    <span>Casa Centro</span>
-                    <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-300">
-                      40% ocupado
-                    </span>
+
+                  <div className={styles.mockTable}>
+                    <div className={`${styles.mockRow} ${styles.mockRowHeader}`}>
+                      <span>Huésped</span>
+                      <span>Hab.</span>
+                      <span>Estado</span>
+                    </div>
+                    <div className={styles.mockRow}>
+                      <span>Martínez, L.</span>
+                      <span className={styles.mockMuted}>Hab. 3</span>
+                      <span className={`${styles.badge} ${styles.badgeCheckin}`}>
+                        Check-in
+                      </span>
+                    </div>
+                    <div className={styles.mockRow}>
+                      <span>Rodríguez, P.</span>
+                      <span className={styles.mockMuted}>Cabaña 1</span>
+                      <span className={`${styles.badge} ${styles.badgeReservada}`}>
+                        Reservada
+                      </span>
+                    </div>
+                    <div className={styles.mockRow}>
+                      <span>González, A.</span>
+                      <span className={styles.mockMuted}>Suite</span>
+                      <span className={`${styles.badge} ${styles.badgeCheckout}`}>
+                        Check-out
+                      </span>
+                    </div>
+                    <div className={styles.mockRow}>
+                      <span>López, F.</span>
+                      <span className={styles.mockMuted}>Hab. 7</span>
+                      <span className={`${styles.badge} ${styles.badgeCheckin}`}>
+                        Check-in
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-6 flex justify-end">
-                  <span className="text-[10px] text-slate-500">
-                    Datos de ejemplo · Dashboard en construcción
+              <div className={styles.floatCard}>
+                <p className={styles.floatCardTitle}>Pre check-in recibido</p>
+                <p className={styles.floatCardBody}>✓ Martínez, L.</p>
+                <p className={styles.floatCardSub}>Datos completos · hace 2 min</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className={styles.logosBar}>
+        <div className={styles.container}>
+          <div className={styles.logosInner}>
+            <span className={styles.logosLabel}>Integrado con</span>
+            <span className={styles.platformBadge}>🔵 Booking.com</span>
+            <span className={styles.platformBadge}>🌸 Airbnb</span>
+            <span className={styles.platformBadge}>💳 MercadoPago</span>
+            <span className={styles.platformBadge}>📧 Email automático</span>
+            <span className={styles.platformBadge}>📱 Pre check-in digital</span>
+          </div>
+        </div>
+      </div>
+
+      <section className={`${styles.section} ${styles.features}`} id="features">
+        <div className={styles.container}>
+          <div className={styles.featuresHeader}>
+            <div className={styles.sectionTag}>
+              <span className={styles.tag}>Funciones</span>
+            </div>
+            <h2 className={styles.sectionTitle}>
+              Todo lo que necesitás,
+              <br />
+              en un solo lugar.
+            </h2>
+            <p className={styles.sectionSub}>
+              Diseñado para hoteles, cabañas y alquileres temporarios en
+              Argentina, con foco en operación real y velocidad.
+            </p>
+          </div>
+
+          <div className={styles.featuresGrid}>
+            {features.map((feature) => (
+              <article key={feature.title} className={styles.featureCard}>
+                <div className={styles.featureIcon}>{feature.icon}</div>
+                <h3 className={styles.featureTitle}>{feature.title}</h3>
+                <p className={styles.featureDesc}>{feature.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.how}`} id="como-funciona">
+        <div className={styles.container}>
+          <div className={styles.howInner}>
+            <div>
+              <div className={styles.sectionTag}>
+                <span className={styles.tag}>Así funciona</span>
+              </div>
+              <h2 className={styles.sectionTitle}>
+                De la reserva
+                <br />
+                al check-out.
+                <br />
+                <span className={styles.accent}>En minutos.</span>
+              </h2>
+
+              <div className={styles.steps}>
+                <article className={`${styles.step} ${styles.stepActive}`}>
+                  <span className={styles.stepNum}>1</span>
+                  <div>
+                    <h4 className={styles.stepTitle}>Cargás la reserva</h4>
+                    <p className={styles.stepDesc}>
+                      En menos de 30 segundos tenés la reserva creada, habitación
+                      asignada y la seña registrada.
+                    </p>
+                  </div>
+                </article>
+
+                <article className={styles.step}>
+                  <span className={styles.stepNum}>2</span>
+                  <div>
+                    <h4 className={styles.stepTitle}>
+                      El huésped hace el pre check-in
+                    </h4>
+                    <p className={styles.stepDesc}>
+                      Le enviás un link y completa sus datos desde el celular.
+                      Cuando llega, ya tenés todo listo en panel.
+                    </p>
+                  </div>
+                </article>
+
+                <article className={styles.step}>
+                  <span className={styles.stepNum}>3</span>
+                  <div>
+                    <h4 className={styles.stepTitle}>
+                      Gestionás el día desde el dashboard
+                    </h4>
+                    <p className={styles.stepDesc}>
+                      Check-ins, check-outs, ocupación y novedades en una vista
+                      limpia, sin buscar en chats ni planillas.
+                    </p>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <div className={styles.howVisual}>
+              <div className={styles.checkinHeader}>
+                <span className={styles.checkinAvatar}>M</span>
+                <div>
+                  <p className={styles.checkinInfoTitle}>
+                    Pre check-in · Cabaña del Bosque
+                  </p>
+                  <p className={styles.checkinInfoSub}>
+                    Llegada: Sáb 18 de mayo · 15:00 hs
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.checkinField}>
+                <label>Nombre completo</label>
+                <div className={styles.checkinInput}>Martínez, Lucía Andrea</div>
+              </div>
+              <div className={styles.checkinField}>
+                <label>DNI / Pasaporte</label>
+                <div className={styles.checkinInput}>38.422.917</div>
+              </div>
+              <div className={styles.checkinField}>
+                <label>Cantidad de personas</label>
+                <div className={styles.checkinInput}>2 adultos · 1 menor</div>
+              </div>
+              <div className={styles.checkinField}>
+                <label>Teléfono de contacto</label>
+                <div className={styles.checkinInput}>+54 9 11 5544 3322</div>
+              </div>
+
+              <button type="button" className={styles.checkinBtn}>
+                Confirmar pre check-in ✓
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.pricing}`} id="precios">
+        <div className={styles.container}>
+          <div className={styles.pricingHeader}>
+            <div className={styles.sectionTag}>
+              <span className={styles.tag}>Precios</span>
+            </div>
+            <h2 className={styles.sectionTitle}>Simple. Sin sorpresas.</h2>
+            <p className={styles.sectionSub}>
+              14 días de prueba gratis en cualquier plan. Sin tarjeta de crédito.
+            </p>
+          </div>
+
+          <div className={styles.pricingGrid}>
+            {plans.map((plan) => (
+              <article
+                key={plan.name}
+                className={`${styles.planCard} ${plan.featured ? styles.planFeatured : ""}`}
+              >
+                <p className={styles.planName}>{plan.name}</p>
+                <div className={styles.planPrice}>
+                  <span className={styles.planCurrency}>$</span>
+                  <span className={styles.planAmount}>{plan.amount}</span>
+                  <span className={styles.planPeriod}>{plan.period}</span>
+                </div>
+                <p className={styles.planDesc}>{plan.description}</p>
+
+                <hr className={styles.planDivider} />
+
+                <ul className={styles.planFeatures}>
+                  {plan.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={plan.href}
+                  className={plan.featured ? styles.btnPlanPrimary : styles.btnPlan}
+                >
+                  {plan.cta}
+                </Link>
+              </article>
+            ))}
+          </div>
+
+          <p className={styles.pricingNote}>
+            Precios en pesos argentinos · IVA no incluido · Podés cancelar cuando
+            quieras.
+          </p>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.testimonials}`}>
+        <div className={styles.container}>
+          <div className={styles.testimonialsHeader}>
+            <div className={styles.sectionTag}>
+              <span className={styles.tag}>Testimonios</span>
+            </div>
+            <h2 className={styles.sectionTitle}>
+              Lo que dicen
+              <br />
+              nuestros clientes.
+            </h2>
+          </div>
+
+          <div className={styles.testimonialsGrid}>
+            {testimonials.map((testimonial) => (
+              <article key={testimonial.name} className={styles.testimonialCard}>
+                <p className={styles.testimonialStars}>★★★★★</p>
+                <p className={styles.testimonialQuote}>“{testimonial.quote}”</p>
+                <div className={styles.testimonialAuthor}>
+                  <span className={styles.testimonialAvatar}>
+                    {testimonial.name.charAt(0)}
                   </span>
+                  <div>
+                    <p className={styles.testimonialName}>{testimonial.name}</p>
+                    <p className={styles.testimonialRole}>{testimonial.role}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-
-      {/* FEATURES */}
-      <section
-        id="features"
-        className="border-t border-slate-800 bg-slate-950/60"
-      >
-        <div className="max-w-6xl mx-auto px-4 py-16 space-y-8">
-          <div>
-            <p className="text-[11px] font-semibold text-emerald-400 uppercase tracking-[0.16em]">
-              Pensado para el día a día
-            </p>
-            <h2 className="text-2xl md:text-3xl font-semibold">
-              Todo lo que necesitás para tu operación diaria.
+      <section className={`${styles.section} ${styles.finalCta}`}>
+        <div className={styles.container}>
+          <div className={styles.finalCtaInner}>
+            <h2 className={styles.finalTitle}>
+              Dejá de gestionar
+              <br />
+              con <span className={styles.accent}>WhatsApp y Excel.</span>
             </h2>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 gap-4">
-            {/* Card 1 */}
-            <article className="h-full rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm shadow-black/30">
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-2xl">
-                🏨
-              </div>
-              <h3 className="text-sm font-semibold mb-1">
-                Gestión de propiedades
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Cargá hoteles, cabañas y casas. Organizá habitaciones, cupos y tipos
-                de unidad en segundos, sin enredos.
-              </p>
-            </article>
-
-            {/* Card 2 */}
-            <article className="h-full rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm shadow-black/30">
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-2xl">
-                📅
-              </div>
-              <h3 className="text-sm font-semibold mb-1">
-                Reservas y ocupación
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Check-in, check-out y estado de cada reserva en un solo panel. Sabés
-                siempre cuántas habitaciones tenés libres hoy.
-              </p>
-            </article>
-
-            {/* Card 3 */}
-            <article className="h-full rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm shadow-black/30">
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-2xl">
-                🇦🇷
-              </div>
-              <h3 className="text-sm font-semibold mb-1">
-                Enfocado en Argentina
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Moneda local, flujos simples, idioma español y soporte cercano a la
-                realidad del país. Ideal para hoteles independientes y pequeñas
-                cadenas.
-              </p>
-            </article>
-
-            {/* Card 4 – nueva */}
-            <article className="h-full rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-sm shadow-black/30">
-              <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-2xl">
-                👥
-              </div>
-              <h3 className="text-sm font-semibold mb-1">
-                Multiusuario y equipo
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Compartí el acceso con recepción, administración o socios. Cada uno
-                ve el mismo panel actualizado, sin pisarse ni depender de un solo
-                usuario.
-              </p>
-            </article>
+            <p className={styles.finalSub}>
+              Probalo 14 días gratis. Sin tarjeta. Sin compromiso.
+            </p>
+            <Link href="/auth/register" className={styles.btnPrimary}>
+              Empezar ahora →
+            </Link>
+            <p className={styles.finalNote}>
+              ✓ Setup en menos de 5 minutos · ✓ Soporte en español · ✓ Hecho en
+              Argentina
+            </p>
           </div>
         </div>
       </section>
 
+      <footer className={styles.footer}>
+        <div className={styles.container}>
+          <div className={styles.footerInner}>
+            <div>
+              <BrandLogo size="sm" className={styles.brandText} textClassName={styles.brandText} />
+              <p className={styles.footerBrandText}>
+                Software de gestión para alojamientos argentinos. Simple, rápido y
+                sin excusas.
+              </p>
+            </div>
 
+            <div className={styles.footerLinks}>
+              <h4>Producto</h4>
+              <ul>
+                <li>
+                  <a href="#features">Funciones</a>
+                </li>
+                <li>
+                  <a href="#precios">Precios</a>
+                </li>
+                <li>
+                  <Link href="/dashboard">Demo</Link>
+                </li>
+              </ul>
+            </div>
 
-      {/* PRICING */}
-      <section
-        id="pricing"
-        className="border-t border-slate-800 bg-slate-950/80"
-      >
-        <div className="max-w-6xl mx-auto px-4 py-16 space-y-8">
-          <div className="text-center">
-            <p className="text-[11px] font-semibold text-emerald-400 uppercase tracking-[0.16em]">
-              Planes
-            </p>
-            <h2 className="text-2xl md:text-3xl font-semibold mb-2">
-              Empezá gratis, crecé cuando lo necesites.
-            </h2>
-            <p className="text-sm text-slate-400">
-              Pensado para alojamientos de Argentina: precios en ARS y sin
-              complicaciones.
-            </p>
+            <div className={styles.footerLinks}>
+              <h4>Cuenta</h4>
+              <ul>
+                <li>
+                  <Link href="/auth/register">Crear cuenta</Link>
+                </li>
+                <li>
+                  <Link href="/auth/login">Iniciar sesión</Link>
+                </li>
+                <li>
+                  <a href="mailto:hola@veklo.app">Contacto</a>
+                </li>
+              </ul>
+            </div>
+
+            <div className={styles.footerLinks}>
+              <h4>Legal</h4>
+              <ul>
+                <li>
+                  <a href="#">Términos</a>
+                </li>
+                <li>
+                  <a href="#">Privacidad</a>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Plan Gratis */}
-            <div className="card bg-slate-900/70 border border-slate-800 shadow-xl">
-              <div className="card-body">
-                <h3 className="card-title text-sm">Plan Gratis</h3>
-                <p className="text-xs text-slate-400">
-                  Ideal para probar GestionFast con un solo alojamiento.
-                </p>
-
-                <div className="mt-4 mb-2">
-                  <span className="text-3xl font-semibold">ARS 0</span>
-                  <span className="text-xs text-slate-400 ml-1">/mes</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mb-3">
-                  Sin tarjeta de crédito.
-                </p>
-
-                <ul className="text-xs text-slate-300 space-y-1">
-                  <li>• 1 propiedad</li>
-                  <li>• Hasta 10 habitaciones</li>
-                  <li>• Gestión básica de reservas</li>
-                  <li>• Soporte por mail estándar</li>
-                </ul>
-
-                <div className="card-actions mt-5">
-                  <button className="btn btn-sm btn-primary w-full">
-                    Crear cuenta gratis
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Plan Pro */}
-            <div className="card bg-slate-900 border border-emerald-500/70 shadow-xl relative overflow-hidden">
-              <span className="badge badge-sm badge-success absolute right-3 top-3">
-                Más elegido
-              </span>
-              <div className="card-body">
-                <h3 className="card-title text-sm">Plan Pro</h3>
-                <p className="text-xs text-slate-400">
-                  Para hoteles y complejos que quieren centralizar todo.
-                </p>
-
-                <div className="mt-4 mb-2">
-                  <span className="text-3xl font-semibold">ARS 14.900</span>
-                  <span className="text-xs text-slate-400 ml-1">/mes</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mb-3">
-                  Precio orientativo, después lo ajustás a tu realidad.
-                </p>
-
-                <ul className="text-xs text-slate-300 space-y-1">
-                  <li>• Hasta 5 propiedades</li>
-                  <li>• Habitaciones ilimitadas</li>
-                  <li>• Dashboard con métricas y ocupación</li>
-                  <li>• Múltiples usuarios (recepción / admin)</li>
-                  <li>• Soporte prioritario por mail</li>
-                </ul>
-
-                <div className="card-actions mt-5">
-                  <button className="btn btn-sm btn-primary w-full">
-                    Probar Plan Pro
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Plan Plus */}
-            <div className="card bg-slate-900/70 border border-slate-800 shadow-xl">
-              <div className="card-body">
-                <h3 className="card-title text-sm">Plan Plus</h3>
-                <p className="text-xs text-slate-400">
-                  Para cadenas chicas o quien necesita acompañamiento más de
-                  cerca.
-                </p>
-
-                <div className="mt-4 mb-2">
-                  <span className="text-3xl font-semibold">ARS 29.900</span>
-                  <span className="text-xs text-slate-400 ml-1">/mes</span>
-                </div>
-                <p className="text-[11px] text-slate-500 mb-3">
-                  Incluye soporte más personalizado.
-                </p>
-
-                <ul className="text-xs text-slate-300 space-y-1">
-                  <li>• Propiedades ilimitadas</li>
-                  <li>• Reportes avanzados y exportables</li>
-                  <li>• Entrenamiento inicial para tu equipo</li>
-                  <li>• Soporte prioritario + opción llamada</li>
-                </ul>
-
-                <div className="card-actions mt-5">
-                  <button className="btn btn-sm btn-outline w-full">
-                    Hablar sobre este plan
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div className={styles.footerBottom}>
+            <span>© {new Date().getFullYear()} veklo. Hecho en Argentina.</span>
+            <span>Todos los precios en ARS.</span>
           </div>
         </div>
-      </section>
-
-      <button className="btn btn-primary">Probando DaisyUI</button>
-
-
-      {/* AYUDA / FAQ */}
-      <section
-        id="ayuda"
-        className="border-t border-slate-800 bg-slate-950/60"
-      >
-        <div className="max-w-6xl mx-auto px-4 py-16 grid gap-10 md:grid-cols-2">
-          <div>
-            <h2 className="text-2xl font-semibold mb-2">Ayuda y soporte.</h2>
-            <p className="text-sm text-slate-400 mb-4">
-              Estamos armando la documentación y el centro de ayuda para que
-              puedas resolver todo en minutos.
-            </p>
-            <ul className="text-xs text-slate-300 space-y-2">
-              <li>• Onboarding guiado para tus primeras propiedades.</li>
-              <li>• Tips para cargar habitaciones y armar tu primer dashboard.</li>
-              <li>• Mejores prácticas para manejar reservas y sobreventas.</li>
-            </ul>
-          </div>
-
-          <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 text-xs space-y-3">
-            <h3 className="text-sm font-semibold mb-1">Preguntas frecuentes</h3>
-            <div>
-              <p className="font-medium text-slate-200">
-                ¿Tengo que poner tarjeta para probar?
-              </p>
-              <p className="text-slate-400">
-                No. Podés crear tu cuenta gratis, cargar tus propiedades y
-                recién después decidir si pasás a un plan pago.
-              </p>
-            </div>
-            <div>
-              <p className="font-medium text-slate-200">
-                ¿Puedo usarlo en más de un hotel?
-              </p>
-              <p className="text-slate-400">
-                Sí. GestionFast está pensado para manejar varias propiedades con
-                una sola cuenta.
-              </p>
-            </div>
-            <div>
-              <p className="font-medium text-slate-200">
-                ¿Ofrecen soporte personalizado?
-              </p>
-              <p className="text-slate-400">
-                En el plan Pro y Plus tenés soporte prioritario por mail y
-                podemos coordinar una llamada si lo necesitás.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      </footer>
     </main>
   );
 }

@@ -4,12 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+const PLAN_OPTIONS = [
+  { value: "inicio", label: "Inicio (1 propiedad / 25 habitaciones)" },
+  { value: "pro", label: "Pro (hasta 5 propiedades)" },
+  { value: "plus", label: "Plus (propiedades ilimitadas)" },
+];
+
+function normalizePlan(rawPlan) {
+  const value = String(rawPlan || "").trim().toLowerCase();
+  return PLAN_OPTIONS.some((plan) => plan.value === value) ? value : "inicio";
+}
+
 export default function RegisterPage() {
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [plan, setPlan] = useState(() => {
+    if (typeof window === "undefined") return "inicio";
+    const params = new URLSearchParams(window.location.search);
+    return normalizePlan(params.get("plan"));
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +41,7 @@ export default function RegisterPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, plan }),
       });
 
       const data = await res.json();
@@ -52,6 +68,9 @@ export default function RegisterPage() {
       </h2>
       <p className="text-xs text-slate-400 mb-6">
         Empezá a centralizar la gestión de tus hoteles en minutos.
+      </p>
+      <p className="text-[11px] text-emerald-300 mb-4">
+        Prueba gratuita de 14 días incluida.
       </p>
 
       {error && (
@@ -92,6 +111,21 @@ export default function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs text-slate-300">Plan inicial</label>
+          <select
+            className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+            value={plan}
+            onChange={(e) => setPlan(e.target.value)}
+          >
+            {PLAN_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <button

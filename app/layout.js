@@ -1,21 +1,41 @@
-// app/layout.js
+import "./globals.css";
 
-import "./globals.css"
-import {Inter} from "next/font/google";
+export const metadata = {
+  title: "veklo - Gestión de alojamientos sin caos",
+  description:
+    "Gestioná reservas, pre check-in digital y operación diaria de tus alojamientos desde un solo panel.",
+};
 
-const inter = Inter({subsets:["latin"]});
+const themeInitializerScript = `
+(() => {
+  try {
+    const storageKey = "veklo-theme";
+    const legacyKey = "gestionfast-theme";
+    const stored =
+      window.localStorage.getItem(storageKey) ??
+      window.localStorage.getItem(legacyKey);
 
-export const medata = {
-  title: "GestionFast - SaaS de Gestión Hotelera",
-  description: "Toda la gestión de tu hotel en la palma de tu mano en un solo click.",
-}
+    const theme =
+      stored === "light" || stored === "dark"
+        ? stored
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
 
-export default function RootLayout({children}){
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem(storageKey, theme);
+    window.localStorage.removeItem(legacyKey);
+  } catch {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
+})();
+`;
+
+export default function RootLayout({ children }) {
   return (
-    <html lang="es">
-      <body
-        className={`${inter.className} bg-slate-950 text-slate-100 antialiased`}
-      >
+    <html lang="es" suppressHydrationWarning>
+      <body className="bg-slate-950 text-slate-100 antialiased">
+        <script dangerouslySetInnerHTML={{ __html: themeInitializerScript }} />
         {children}
       </body>
     </html>

@@ -9,6 +9,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "mongo-data/**",
     "next-env.d.ts",
   ]),
 ]);

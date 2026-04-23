@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserContextFromRequest } from "@/lib/auth";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
 import Booking from "@/models/Booking";
@@ -22,9 +22,35 @@ function getRangeDays(days = 7) {
   return { start, end };
 }
 
+function buildPropertyScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
+function buildBookingScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
 export async function GET(request) {
   await dbConnect();
-  const user = getUserFromRequest(request);
+  const user = await getUserContextFromRequest(request);
   if (!user) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
@@ -40,7 +66,7 @@ export async function GET(request) {
   if (propertyId) {
     const property = await Property.findOne({
       _id: propertyId,
-      ownerId: user.id,
+      ...buildPropertyScope(user),
     }).select("_id");
     if (!property) {
       return NextResponse.json(
@@ -50,21 +76,22 @@ export async function GET(request) {
     }
     properties = [property];
   } else {
-    properties = await Property.find({ ownerId: user.id }).select("_id");
+    properties = await Property.find(buildPropertyScope(user)).select("_id");
   }
 
   const propertyIds = properties.map((p) => p._id);
 
   const roomFilter =
-    propertyIds.length > 0 ? { propertyId: { $in: propertyIds } } : {};
-  const totalRooms = await Room.countDocuments(roomFilter);
+    propertyIds.length > 0 ? { propertyId: { $in: propertyIds } } : null;
+  const totalRooms = roomFilter ? await Room.countDocuments(roomFilter) : 0;
 
   // Filtro base de reservas
-  const bookingBaseFilter = { ownerId: user.id };
-  if (propertyIds.length > 0) {
-    bookingBaseFilter.propertyId =
-      propertyIds.length === 1 ? propertyIds[0] : { $in: propertyIds };
-  }
+  const bookingBaseFilter = {
+    ...buildBookingScope(user),
+    ...(propertyIds.length > 0
+      ? { propertyId: propertyIds.length === 1 ? propertyIds[0] : { $in: propertyIds } }
+      : { propertyId: null }),
+  };
 
   // Reservas que tocan el rango
   const bookings = await Booking.find({
@@ -124,4 +151,3 @@ export async function GET(request) {
     data,
   });
 }
-

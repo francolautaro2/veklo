@@ -2,8 +2,11 @@
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
-  // Redirigimos al login después de cerrar sesión
-  const response = NextResponse.redirect(new URL("/auth/login", request.url));
+  // Redirigimos al login despues de cerrar sesion
+  const response = NextResponse.redirect(
+    new URL("/auth/login", request.url),
+    { status: 303 }
+  );
 
   // Borramos la cookie del JWT
   response.cookies.set("hotel_saas_token", "", {
@@ -11,7 +14,7 @@ export async function POST(request) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 0, // expira ya
+    maxAge: 0,
   });
 
   return response;

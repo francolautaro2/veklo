@@ -1,7 +1,7 @@
 // app/api/dashboard/today/route.js
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserContextFromRequest } from "@/lib/auth";
 import Booking from "@/models/Booking";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
@@ -29,9 +29,35 @@ function getTodayRange() {
   return { start, end };
 }
 
+function buildPropertyScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
+function buildBookingScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
 export async function GET(request) {
   await dbConnect();
-  const user = getUserFromRequest(request);
+  const user = await getUserContextFromRequest(request);
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
@@ -42,10 +68,24 @@ export async function GET(request) {
 
   const { start, end } = getTodayRange();
 
-  const baseFilter = { ownerId: user.id };
   if (propertyId) {
-    baseFilter.propertyId = propertyId;
+    const property = await Property.findOne({
+      _id: propertyId,
+      ...buildPropertyScope(user),
+    }).select("_id");
+
+    if (!property) {
+      return NextResponse.json(
+        { error: "Propiedad no encontrada." },
+        { status: 404 }
+      );
+    }
   }
+
+  const baseFilter = {
+    ...buildBookingScope(user),
+    ...(propertyId ? { propertyId } : {}),
+  };
 
   // Check-ins de hoy
   const checkInsRaw = await Booking.find({
@@ -75,10 +115,16 @@ export async function GET(request) {
   ];
   const roomIds = [...new Set(allBookings.map((b) => String(b.roomId)))];
 
-  const properties = await Property.find({ _id: { $in: propertyIds } })
+  const properties = await Property.find({
+    _id: { $in: propertyIds },
+    ...buildPropertyScope(user),
+  })
     .select("_id name")
     .lean();
-  const rooms = await Room.find({ _id: { $in: roomIds } })
+  const rooms = await Room.find({
+    _id: { $in: roomIds },
+    propertyId: { $in: propertyIds },
+  })
     .select("_id name")
     .lean();
 

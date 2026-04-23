@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100" width="320" height="100">
+  <defs>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C00;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F97316;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FBBF24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F97316;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Geometric symbol: two overlapping hexagon-like shapes forming a V -->
+  <!-- Left diamond -->
+  <polygon points="30,20 52,50 30,80 8,50" fill="url(#orangeGrad)" opacity="0.95"/>
+  <!-- Right diamond (offset, slightly lighter) -->
+  <polygon points="52,20 74,50 52,80 30,50" fill="url(#amberGrad)" opacity="0.75"/>
+
+  <!-- Wordmark -->
+  <text
+    x="92"
+    y="67"
+    font-family="'Trebuchet MS', 'Gill Sans', sans-serif"
+    font-size="52"
+    font-weight="700"
+    letter-spacing="-1"
+    fill="#1A1A1A"
+  >veklo</text>
+</svg>

@@ -3,6 +3,12 @@ import mongoose from "mongoose";
 
 const PropertySchema = new mongoose.Schema(
   {
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      index: true,
+      default: null,
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

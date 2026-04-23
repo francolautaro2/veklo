@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserContextFromRequest } from "@/lib/auth";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
 import Booking from "@/models/Booking";
@@ -28,9 +28,35 @@ function getTodayRange() {
   return { start, end };
 }
 
+function buildPropertyScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
+function buildBookingScope(user) {
+  if (!user.organizationId) {
+    return { ownerId: user.id };
+  }
+
+  return {
+    $or: [
+      { organizationId: user.organizationId },
+      { organizationId: { $exists: false }, ownerId: user.id },
+    ],
+  };
+}
+
 export async function GET(request) {
   await dbConnect();
-  const user = getUserFromRequest(request);
+  const user = await getUserContextFromRequest(request);
 
   if (!user) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
@@ -46,7 +72,7 @@ export async function GET(request) {
   if (propertyId) {
     const property = await Property.findOne({
       _id: propertyId,
-      ownerId: user.id,
+      ...buildPropertyScope(user),
     }).select("_id");
     if (!property) {
       return NextResponse.json(
@@ -56,23 +82,39 @@ export async function GET(request) {
     }
     properties = [property];
   } else {
-    properties = await Property.find({ ownerId: user.id }).select("_id");
+    properties = await Property.find(buildPropertyScope(user)).select("_id");
   }
 
   const propertyIds = properties.map((p) => p._id);
   const propertiesCount = properties.length;
 
+  if (propertyIds.length === 0) {
+    return NextResponse.json({
+      propertiesCount,
+      roomsCount: 0,
+      bookingsCount: 0,
+      todayCheckins: 0,
+      todayCheckouts: 0,
+      todayOccupiedRooms: 0,
+      totalRooms: 0,
+      bookingsByStatus: {
+        reserved: 0,
+        checked_in: 0,
+        checked_out: 0,
+        cancelled: 0,
+      },
+    });
+  }
+
   // Habitaciones
-  const roomFilter =
-    propertyIds.length > 0 ? { propertyId: { $in: propertyIds } } : {};
+  const roomFilter = { propertyId: { $in: propertyIds } };
   const roomsCount = await Room.countDocuments(roomFilter);
 
   // Filtro base para reservas
-  const bookingBaseFilter = { ownerId: user.id };
-  if (propertyIds.length > 0) {
-    bookingBaseFilter.propertyId =
-      propertyIds.length === 1 ? propertyIds[0] : { $in: propertyIds };
-  }
+  const bookingBaseFilter = {
+    ...buildBookingScope(user),
+    propertyId: propertyIds.length === 1 ? propertyIds[0] : { $in: propertyIds },
+  };
 
   const bookingsCount = await Booking.countDocuments(bookingBaseFilter);
 
