@@ -22,6 +22,11 @@ function getRangeDays(days = 7) {
   return { start, end };
 }
 
+function parseDays(value) {
+  const parsed = Number(value);
+  return [7, 30, 90].includes(parsed) ? parsed : 7;
+}
+
 function buildPropertyScope(user) {
   if (!user.organizationId) {
     return { ownerId: user.id };
@@ -58,7 +63,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const propertyId = searchParams.get("propertyId");
 
-  const days = 7;
+  const days = parseDays(searchParams.get("days"));
   const { start, end } = getRangeDays(days);
 
   // Propiedades a considerar

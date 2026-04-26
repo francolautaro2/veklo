@@ -1,5 +1,7 @@
 import Link from "next/link";
 import BrandLogo from "@/app/_components/brand-logo";
+import IntegrationsCarousel from "@/app/_components/integrations-carousel";
+import LandingThemeToggle from "@/app/_components/landing-theme-toggle";
 import styles from "./landing.module.css";
 
 const features = [
@@ -23,9 +25,9 @@ const features = [
   },
   {
     icon: "💳",
-    title: "Cobros con MercadoPago",
+    title: "Control de pagos y señas",
     description:
-      "Aceptá pagos y señas directamente desde la plataforma con integración nativa y gestión centralizada.",
+      "Registrá pagos manuales, señas pendientes y cobros confirmados para saber qué falta cobrar en cada reserva.",
   },
   {
     icon: "🔗",
@@ -55,7 +57,7 @@ const plans = [
       "Pre check-in digital",
       "Dashboard con métricas",
       "Emails automáticos",
-      "Integración MercadoPago",
+      "Control manual de pagos y señas",
       "Soporte por email",
     ],
     href: "/auth/register?plan=pro",
@@ -74,7 +76,7 @@ const plans = [
       "Pre check-in digital",
       "Dashboard avanzado + exportar",
       "Emails automáticos",
-      "Integración MercadoPago",
+      "Control manual de pagos y señas",
       "Sync iCal con Booking y Airbnb",
       "Reportes de ingresos",
       "Soporte prioritario por WhatsApp",
@@ -131,6 +133,7 @@ export default function Home() {
             </nav>
 
             <div className={styles.navActions}>
+              <LandingThemeToggle />
               <Link href="/auth/login" className={styles.linkGhost}>
                 Iniciar sesión
               </Link>
@@ -255,11 +258,7 @@ export default function Home() {
         <div className={styles.container}>
           <div className={styles.logosInner}>
             <span className={styles.logosLabel}>Integrado con</span>
-            <span className={styles.platformBadge}>🔵 Booking.com</span>
-            <span className={styles.platformBadge}>🌸 Airbnb</span>
-            <span className={styles.platformBadge}>💳 MercadoPago</span>
-            <span className={styles.platformBadge}>📧 Email automático</span>
-            <span className={styles.platformBadge}>📱 Pre check-in digital</span>
+            <IntegrationsCarousel />
           </div>
         </div>
       </div>

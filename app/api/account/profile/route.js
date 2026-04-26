@@ -16,6 +16,8 @@ function buildSafeUser(user) {
     id: user._id.toString(),
     name: user.name,
     email: user.email,
+    phone: user.phone || "",
+    documentId: user.documentId || "",
     organizationId: user.organizationId?.toString() || null,
     role: user.role || "owner",
     plan: user.plan,
@@ -39,7 +41,7 @@ export async function GET(request) {
   }
 
   const user = await User.findById(sessionUser.id).select(
-    "name email role organizationId plan subscriptionStatus subscriptionProvider subscriptionExternalId subscriptionCurrentPeriodEnd subscriptionLastWebhookAt trialStartsAt trialEndsAt createdAt"
+    "name email phone documentId role organizationId plan subscriptionStatus subscriptionProvider subscriptionExternalId subscriptionCurrentPeriodEnd subscriptionLastWebhookAt trialStartsAt trialEndsAt createdAt"
   );
 
   if (!user) {
@@ -66,11 +68,15 @@ export async function PUT(request) {
 
   await ensureUserOrganization(user);
 
-  const { name, email, currentPassword, newPassword } = await request.json();
+  const { name, email, phone, documentId, currentPassword, newPassword } =
+    await request.json();
 
   const normalizedName = typeof name === "string" ? name.trim() : undefined;
   const normalizedEmail =
     typeof email === "string" ? email.trim().toLowerCase() : undefined;
+  const normalizedPhone = typeof phone === "string" ? phone.trim() : undefined;
+  const normalizedDocumentId =
+    typeof documentId === "string" ? documentId.trim() : undefined;
   const normalizedCurrentPassword =
     typeof currentPassword === "string" ? currentPassword : "";
   const normalizedNewPassword = typeof newPassword === "string" ? newPassword : "";
@@ -87,10 +93,29 @@ export async function PUT(request) {
     return NextResponse.json({ error: "Email inválido." }, { status: 400 });
   }
 
+  if (normalizedPhone !== undefined && normalizedPhone.length > 30) {
+    return NextResponse.json(
+      { error: "El teléfono no puede superar 30 caracteres." },
+      { status: 400 }
+    );
+  }
+
+  if (normalizedDocumentId !== undefined && normalizedDocumentId.length > 40) {
+    return NextResponse.json(
+      { error: "El documento no puede superar 40 caracteres." },
+      { status: 400 }
+    );
+  }
+
   const wantsNameChange =
     normalizedName !== undefined && normalizedName !== user.name;
   const wantsEmailChange =
     normalizedEmail !== undefined && normalizedEmail !== user.email;
+  const wantsPhoneChange =
+    normalizedPhone !== undefined && normalizedPhone !== (user.phone || "");
+  const wantsDocumentIdChange =
+    normalizedDocumentId !== undefined &&
+    normalizedDocumentId !== (user.documentId || "");
   const wantsPasswordChange = normalizedNewPassword.length > 0;
 
   if (wantsPasswordChange && normalizedNewPassword.length < 8) {
@@ -135,7 +160,13 @@ export async function PUT(request) {
     }
   }
 
-  if (!wantsNameChange && !wantsEmailChange && !wantsPasswordChange) {
+  if (
+    !wantsNameChange &&
+    !wantsEmailChange &&
+    !wantsPhoneChange &&
+    !wantsDocumentIdChange &&
+    !wantsPasswordChange
+  ) {
     return NextResponse.json(
       { user: buildSafeUser(user), message: "No hay cambios para guardar." },
       { status: 200 }
@@ -144,6 +175,8 @@ export async function PUT(request) {
 
   if (wantsNameChange) user.name = normalizedName;
   if (wantsEmailChange) user.email = normalizedEmail;
+  if (wantsPhoneChange) user.phone = normalizedPhone;
+  if (wantsDocumentIdChange) user.documentId = normalizedDocumentId;
   if (wantsPasswordChange) {
     user.passwordHash = await bcrypt.hash(normalizedNewPassword, 10);
   }

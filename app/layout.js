@@ -4,6 +4,9 @@ export const metadata = {
   title: "veklo - Gestión de alojamientos sin caos",
   description:
     "Gestioná reservas, pre check-in digital y operación diaria de tus alojamientos desde un solo panel.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 const themeInitializerScript = `

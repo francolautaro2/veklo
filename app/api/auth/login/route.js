@@ -44,6 +44,17 @@ export async function POST(req) {
       );
     }
 
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        {
+          error: "Tenés que verificar tu email antes de iniciar sesión.",
+          code: "EMAIL_NOT_VERIFIED",
+          email: user.email,
+        },
+        { status: 403 }
+      );
+    }
+
     const organizationId = await ensureUserOrganization(user);
 
     const payload = {
@@ -63,6 +74,8 @@ export async function POST(req) {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
+      phone: user.phone || "",
+      documentId: user.documentId || "",
       organizationId,
       role: user.role,
       plan: user.plan,

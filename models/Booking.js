@@ -46,6 +46,41 @@ const BookingSchema = new mongoose.Schema(
       enum: ["reserved", "checked_in", "checked_out", "cancelled"],
       default: "reserved",
     },
+    monto_total: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    estado_pago: {
+      type: String,
+      enum: ["pendiente", "pagado", "parcial"],
+      default: "pendiente",
+      index: true,
+    },
+    fecha_pago: {
+      type: Date,
+      default: null,
+    },
+    metodo_pago: {
+      type: String,
+      enum: ["efectivo", "transferencia", "mercadopago", "otro", null],
+      default: null,
+    },
+    monto_pagado: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    fecha_vencimiento_pago: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    notas_pago: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     origin: {
       type: String,
       enum: ["manual", "ical"],
@@ -113,6 +148,38 @@ const BookingSchema = new mongoose.Schema(
         type: String,
         default: "",
       },
+      customAnswers: {
+        type: [
+          {
+            fieldId: {
+              type: String,
+              default: "",
+            },
+            label: {
+              type: String,
+              default: "",
+            },
+            type: {
+              type: String,
+              enum: ["text", "textarea", "boolean"],
+              default: "text",
+            },
+            value: {
+              type: mongoose.Schema.Types.Mixed,
+              default: "",
+            },
+            hasCost: {
+              type: Boolean,
+              default: false,
+            },
+            cost: {
+              type: Number,
+              default: 0,
+            },
+          },
+        ],
+        default: [],
+      },
     },
     deposit: {
       amount: {
@@ -139,6 +206,7 @@ const BookingSchema = new mongoose.Schema(
 
 BookingSchema.index({ roomId: 1, "externalSource.sourceId": 1 });
 BookingSchema.index({ roomId: 1, "externalSource.eventUid": 1 });
+BookingSchema.index({ ownerId: 1, estado_pago: 1, fecha_vencimiento_pago: 1 });
 
 export default mongoose.models.Booking ||
   mongoose.model("Booking", BookingSchema);

@@ -5,6 +5,12 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import { getTrialDates, normalizePlan } from "@/lib/subscription";
 import { ensureUserOrganization } from "@/lib/organization";
+import {
+  createEmailCode,
+  getCodeExpiration,
+  hashEmailCode,
+} from "@/lib/auth-codes";
+import { sendEmailVerificationCode } from "@/lib/email";
 
 export async function POST(req) {
   try {
@@ -39,10 +45,14 @@ export async function POST(req) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const { trialStartsAt, trialEndsAt } = getTrialDates();
+    const verificationCode = createEmailCode();
 
     const user = await User.create({
       name: normalizedName,
       email: normalizedEmail,
+      emailVerified: false,
+      emailVerificationCodeHash: hashEmailCode(verificationCode),
+      emailVerificationExpiresAt: getCodeExpiration(),
       passwordHash,
       role: "owner",
       plan: normalizedPlan,
@@ -52,11 +62,15 @@ export async function POST(req) {
     });
 
     const organizationId = await ensureUserOrganization(user);
+    await sendEmailVerificationCode({ user, code: verificationCode });
 
     const safeUser = {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
+      emailVerified: user.emailVerified,
+      phone: user.phone || "",
+      documentId: user.documentId || "",
       organizationId,
       role: user.role,
       plan: user.plan,
@@ -68,7 +82,14 @@ export async function POST(req) {
       trialEndsAt: user.trialEndsAt,
     };
 
-    return NextResponse.json({ user: safeUser }, { status: 201 });
+    return NextResponse.json(
+      {
+        user: safeUser,
+        requiresEmailVerification: true,
+        message: "Te enviamos un código para verificar tu email.",
+      },
+      { status: 201 }
+    );
   } catch {
     return NextResponse.json(
       { error: "Error al registrar usuario." },

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 100">
+  <defs>
+    <linearGradient id="vekloOrangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF8C00" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+    <linearGradient id="vekloAmberGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+  </defs>
+  <polygon points="30,18 54,50 30,82 6,50" fill="url(#vekloOrangeGradient)" opacity="0.95" />
+  <polygon points="54,18 78,50 54,82 30,50" fill="url(#vekloAmberGradient)" opacity="0.75" />
+</svg>

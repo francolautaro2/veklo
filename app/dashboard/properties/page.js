@@ -9,6 +9,206 @@ const propertyTypes = [
   { value: "casa", label: "Casa" },
 ];
 
+const templateFieldTypes = [
+  { value: "boolean", label: "Sí / No" },
+  { value: "text", label: "Texto corto" },
+  { value: "textarea", label: "Texto largo" },
+];
+
+function createTemplateField() {
+  const suffix =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  return {
+    fieldId: `field-${suffix}`,
+    label: "Nuevo campo",
+    type: "boolean",
+    required: false,
+    hasCost: false,
+    cost: 0,
+  };
+}
+
+function getTemplateFields(property) {
+  return property?.preCheckInTemplate?.customFields || [];
+}
+
+function getPropertyId(property) {
+  return String(property?._id || property?.id || "");
+}
+
+function PreCheckInTemplateCard({ property, saving, onSave }) {
+  const propertyId = getPropertyId(property);
+  const [fields, setFields] = useState(() => getTemplateFields(property));
+
+  useEffect(() => {
+    setFields(getTemplateFields(property));
+  }, [property]);
+
+  function addField() {
+    setFields((current) => [...current, createTemplateField()]);
+  }
+
+  function updateField(fieldId, patch) {
+    setFields((current) =>
+      current.map((field) =>
+        field.fieldId === fieldId
+          ? {
+              ...field,
+              ...patch,
+              cost:
+                Object.prototype.hasOwnProperty.call(patch, "hasCost") &&
+                !patch.hasCost
+                  ? 0
+                  : Object.prototype.hasOwnProperty.call(patch, "cost")
+                    ? patch.cost
+                    : field.cost,
+            }
+          : field
+      )
+    );
+  }
+
+  function removeField(fieldId) {
+    setFields((current) => current.filter((field) => field.fieldId !== fieldId));
+  }
+
+  async function handleSave() {
+    const savedFields = await onSave(property, fields);
+    if (savedFields) {
+      setFields(savedFields);
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-medium text-slate-100">{property.name}</p>
+          <p className="text-[10px] text-slate-500">
+            {fields.length} campo(s) personalizado(s)
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={addField}
+            className="rounded-lg border border-slate-700 px-3 py-1.5 text-[11px] font-medium text-slate-200 hover:bg-slate-800"
+          >
+            Agregar campo
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-lg bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {saving ? "Guardando..." : "Guardar plantilla"}
+          </button>
+        </div>
+      </div>
+
+      {fields.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-slate-700 px-3 py-4 text-[11px] text-slate-500">
+          Todavía no agregaste campos. Ejemplo: “¿Querés toallas extra?” con
+          costo opcional.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {fields.map((field) => (
+            <div
+              key={field.fieldId}
+              className="grid gap-2 rounded-lg border border-slate-800 bg-slate-950 p-3 md:grid-cols-[1.6fr_130px_90px_90px_110px_auto]"
+            >
+              <label className="space-y-1">
+                <span className="text-[10px] text-slate-500">
+                  Pregunta / extra
+                </span>
+                <input
+                  type="text"
+                  value={field.label}
+                  onChange={(event) =>
+                    updateField(field.fieldId, { label: event.target.value })
+                  }
+                  placeholder="Ej: Toallas extra"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-[10px] text-slate-500">Tipo</span>
+                <select
+                  value={field.type}
+                  onChange={(event) =>
+                    updateField(field.fieldId, { type: event.target.value })
+                  }
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                >
+                  {templateFieldTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex items-center gap-2 pt-5 text-[11px] text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={Boolean(field.required)}
+                  onChange={(event) =>
+                    updateField(field.fieldId, { required: event.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-slate-700 bg-slate-900"
+                />
+                Obligatorio
+              </label>
+
+              <label className="flex items-center gap-2 pt-5 text-[11px] text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={Boolean(field.hasCost)}
+                  onChange={(event) =>
+                    updateField(field.fieldId, { hasCost: event.target.checked })
+                  }
+                  className="h-4 w-4 rounded border-slate-700 bg-slate-900"
+                />
+                Tiene costo
+              </label>
+
+              <label className="space-y-1">
+                <span className="text-[10px] text-slate-500">Costo</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={field.cost || 0}
+                  disabled={!field.hasCost}
+                  onChange={(event) =>
+                    updateField(field.fieldId, { cost: event.target.value })
+                  }
+                  className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-50"
+                />
+              </label>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => removeField(field.fieldId)}
+                  className="rounded-lg border border-red-500/30 px-3 py-2 text-[11px] text-red-200 hover:bg-red-500/10"
+                >
+                  Quitar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function PropertiesPage() {
   const router = useRouter();
 
@@ -22,6 +222,9 @@ export default function PropertiesPage() {
 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [templateSavingId, setTemplateSavingId] = useState("");
+  const [templateError, setTemplateError] = useState("");
+  const [templateNotice, setTemplateNotice] = useState("");
 
   async function fetchProperties() {
     setLoadingList(true);
@@ -44,7 +247,8 @@ export default function PropertiesPage() {
         return;
       }
 
-      setProperties(data.properties || []);
+      const nextProperties = data.properties || [];
+      setProperties(nextProperties);
       setLoadingList(false);
     } catch (err) {
       console.error(err);
@@ -99,6 +303,48 @@ export default function PropertiesPage() {
       setError("Error inesperado al crear propiedad.");
       setCreating(false);
     }
+  }
+
+  async function saveTemplate(property, customFields) {
+    const propertyId = getPropertyId(property);
+
+    setTemplateError("");
+    setTemplateNotice("");
+    setTemplateSavingId(propertyId);
+
+    try {
+      const res = await fetch(`/api/properties/${propertyId}/precheckin-template`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customFields }),
+      });
+
+      if (res.status === 401) {
+        router.push("/auth/login");
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setTemplateError(data.error || "No se pudo guardar la plantilla.");
+        setTemplateSavingId("");
+        return;
+      }
+
+      setProperties((current) =>
+        current.map((item) =>
+          getPropertyId(item) === propertyId ? data.property : item
+        )
+      );
+      setTemplateNotice(`Plantilla de ${property.name} guardada.`);
+      setTemplateSavingId("");
+      return data.customFields || getTemplateFields(data.property);
+    } catch {
+      setTemplateError("Error inesperado al guardar la plantilla.");
+      setTemplateSavingId("");
+    }
+
+    return null;
   }
 
   return (
@@ -249,6 +495,58 @@ export default function PropertiesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Plantillas de pre check-in */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
+        <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-xs font-semibold">
+              Plantillas de pre check-in
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Agregá preguntas o extras para que el huésped los complete desde
+              su link. Si tienen costo, se muestran en el formulario.
+            </p>
+          </div>
+        </div>
+
+        {templateError && (
+          <div className="mb-3 rounded-lg border border-red-800 bg-red-900/30 px-3 py-2 text-[11px] text-red-300">
+            {templateError}
+          </div>
+        )}
+
+        {templateNotice && (
+          <div className="mb-3 rounded-lg border border-emerald-800 bg-emerald-900/20 px-3 py-2 text-[11px] text-emerald-200">
+            {templateNotice}
+          </div>
+        )}
+
+        {loadingList ? (
+          <div className="text-[11px] text-slate-400">
+            Cargando plantillas...
+          </div>
+        ) : properties.length === 0 ? (
+          <div className="text-[11px] text-slate-400">
+            Creá una propiedad para configurar su plantilla.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {properties.map((property) => {
+              const propertyId = getPropertyId(property);
+
+              return (
+                <PreCheckInTemplateCard
+                  key={propertyId}
+                  property={property}
+                  saving={templateSavingId === propertyId}
+                  onSave={saveTemplate}
+                />
+              );
+            })}
           </div>
         )}
       </div>

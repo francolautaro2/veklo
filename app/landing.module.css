@@ -17,6 +17,15 @@
   overflow-x: clip;
 }
 
+html[data-theme="light"] .page {
+  --dark: #fcfaf7;
+  --dark2: #f7f2ec;
+  --dark3: #efe8e0;
+  --border: rgba(33, 27, 22, 0.12);
+  --text: #211b16;
+  --muted: #715f53;
+}
+
 .page::before {
   content: "";
   position: fixed;
@@ -77,6 +86,10 @@
   backdrop-filter: blur(14px);
 }
 
+html[data-theme="light"] .nav {
+  background: rgba(252, 250, 247, 0.82);
+}
+
 .navInner {
   min-height: 74px;
   display: flex;
@@ -108,6 +121,35 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.themeToggle {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.themeToggle:hover {
+  color: var(--text);
+  border-color: rgba(249, 115, 22, 0.28);
+  background: rgba(249, 115, 22, 0.08);
+  transform: translateY(-1px);
+}
+
+.themeToggle:focus-visible {
+  outline: 2px solid rgba(249, 115, 22, 0.45);
+  outline-offset: 2px;
 }
 
 .linkGhost {
@@ -428,10 +470,10 @@
 
 .logosInner {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 18px;
+  min-height: 42px;
 }
 
 .logosLabel {
@@ -439,7 +481,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.13em;
-  margin-right: 12px;
+  white-space: nowrap;
 }
 
 .platformBadge {
@@ -452,6 +494,74 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.integrationsCarousel {
+  position: relative;
+  display: flex;
+  width: min(100%, 760px);
+  height: 42px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.integrationsCarousel::before,
+.integrationsCarousel::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 96px;
+  pointer-events: none;
+}
+
+.integrationsCarousel::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--dark2), transparent);
+}
+
+.integrationsCarousel::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--dark2), transparent);
+}
+
+.integrationsTrack {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  gap: 12px;
+  animation: integrationsMarquee 18s linear infinite;
+  will-change: transform;
+}
+
+.integrationSlide {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dark3) 92%, transparent);
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+
+@keyframes integrationsMarquee {
+  to {
+    transform: translateX(calc(-50% - 6px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .integrationsTrack {
+    animation: none;
+    transform: translateX(0);
+  }
 }
 
 .section {
@@ -1067,6 +1177,20 @@
 @media (max-width: 640px) {
   .container {
     padding: 0 18px;
+  }
+
+  .logosInner {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .integrationsCarousel {
+    width: 100%;
+  }
+
+  .integrationsCarousel::before,
+  .integrationsCarousel::after {
+    width: 52px;
   }
 
   .hero {

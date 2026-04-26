@@ -18,6 +18,35 @@ export default function PreCheckInPage() {
   const [guestPhone, setGuestPhone] = useState("");
   const [documentId, setDocumentId] = useState("");
   const [notes, setNotes] = useState("");
+  const [customFields, setCustomFields] = useState([]);
+  const [customAnswers, setCustomAnswers] = useState({});
+
+  function formatMoney(value) {
+    const amount = Number(value || 0);
+    if (!amount) return "$ 0";
+    return `$ ${amount.toLocaleString("es-AR")}`;
+  }
+
+  function buildAnswerMap(fields, answers = []) {
+    const initialAnswers = {};
+    fields.forEach((field) => {
+      initialAnswers[field.fieldId] = field.type === "boolean" ? false : "";
+    });
+
+    answers.forEach((answer) => {
+      if (!answer?.fieldId) return;
+      initialAnswers[answer.fieldId] = answer.value;
+    });
+
+    return initialAnswers;
+  }
+
+  function updateCustomAnswer(fieldId, value) {
+    setCustomAnswers((current) => ({
+      ...current,
+      [fieldId]: value,
+    }));
+  }
 
   useEffect(() => {
     if (!token) return;
@@ -41,6 +70,13 @@ export default function PreCheckInPage() {
         setGuestName(nextBooking.guestName || "");
         setGuestEmail(nextBooking.guestEmail || "");
         setGuestPhone(nextBooking.guestPhone || "");
+        setCustomFields(nextBooking.customFields || []);
+        setCustomAnswers(
+          buildAnswerMap(
+            nextBooking.customFields || [],
+            nextBooking.customAnswers || []
+          )
+        );
         setSuccess(nextBooking.preCheckInStatus === "completed");
         setLoading(false);
       } catch {
@@ -77,6 +113,7 @@ export default function PreCheckInPage() {
           guestPhone,
           documentId,
           notes,
+          customAnswers,
         }),
       });
 
@@ -223,6 +260,73 @@ export default function PreCheckInPage() {
               className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
             />
           </div>
+
+          {customFields.length > 0 && (
+            <div className="space-y-3 border-t border-slate-800 pt-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-100">
+                  Extras y preferencias
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Completá las opciones solicitadas por el alojamiento.
+                </p>
+              </div>
+
+              {customFields.map((field) => (
+                <div key={field.fieldId} className="space-y-1">
+                  <label className="flex items-center justify-between gap-3 text-xs text-slate-300">
+                    <span>
+                      {field.label}
+                      {field.required && (
+                        <span className="ml-1 text-emerald-300">*</span>
+                      )}
+                    </span>
+                    {field.hasCost && (
+                      <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                        + {formatMoney(field.cost)}
+                      </span>
+                    )}
+                  </label>
+
+                  {field.type === "boolean" ? (
+                    <select
+                      value={customAnswers[field.fieldId] ? "true" : "false"}
+                      onChange={(event) =>
+                        updateCustomAnswer(
+                          field.fieldId,
+                          event.target.value === "true"
+                        )
+                      }
+                      className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    >
+                      <option value="false">No</option>
+                      <option value="true">Sí</option>
+                    </select>
+                  ) : field.type === "textarea" ? (
+                    <textarea
+                      value={customAnswers[field.fieldId] || ""}
+                      onChange={(event) =>
+                        updateCustomAnswer(field.fieldId, event.target.value)
+                      }
+                      rows={3}
+                      required={field.required}
+                      className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={customAnswers[field.fieldId] || ""}
+                      onChange={(event) =>
+                        updateCustomAnswer(field.fieldId, event.target.value)
+                      }
+                      required={field.required}
+                      className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="pt-2">
             <button

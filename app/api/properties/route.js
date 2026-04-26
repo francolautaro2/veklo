@@ -1,5 +1,6 @@
 // app/api/properties/route.js
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Property from "@/models/Property";
 import User from "@/models/User";
@@ -11,15 +12,23 @@ import {
   hasAccountAccess,
 } from "@/lib/subscription";
 
+function toObjectId(value) {
+  if (!mongoose.Types.ObjectId.isValid(value)) return null;
+  return new mongoose.Types.ObjectId(value);
+}
+
 function buildPropertyScope(user) {
+  const ownerId = toObjectId(user.id);
+  const organizationId = user.organizationId ? toObjectId(user.organizationId) : null;
+
   if (!user.organizationId) {
-    return { ownerId: user.id };
+    return { ownerId };
   }
 
   return {
     $or: [
-      { organizationId: user.organizationId },
-      { organizationId: { $exists: false }, ownerId: user.id },
+      { organizationId },
+      { organizationId: { $exists: false }, ownerId },
     ],
   };
 }
@@ -32,9 +41,10 @@ export async function GET(request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  const properties = await Property.find(buildPropertyScope(user)).sort({
-    createdAt: -1,
-  });
+  const properties = await Property.collection
+    .find(buildPropertyScope(user))
+    .sort({ createdAt: -1 })
+    .toArray();
 
   return NextResponse.json({ properties });
 }

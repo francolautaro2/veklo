@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import GoogleAuthButton from "@/app/auth/_components/google-auth-button";
 
 const PLAN_OPTIONS = [
   { value: "inicio", label: "Inicio (1 propiedad / 25 habitaciones)" },
@@ -30,6 +31,19 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const handleGoogleStart = useCallback(() => {
+    setLoading(true);
+  }, []);
+
+  const handleGoogleDone = useCallback(() => {
+    setLoading(false);
+  }, []);
+
+  const handleGoogleError = useCallback((message) => {
+    setError(message || "No se pudo autenticar con Google.");
+    setLoading(false);
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -52,8 +66,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Por ahora, después de registrar mandamos al login
-      router.push("/auth/login");
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
       console.error(err);
       setError("Error inesperado. Intentalo de nuevo.");
@@ -78,6 +91,20 @@ export default function RegisterPage() {
           {error}
         </div>
       )}
+
+      <GoogleAuthButton
+        mode="register"
+        plan={plan}
+        onError={handleGoogleError}
+        onStart={handleGoogleStart}
+        onDone={handleGoogleDone}
+      />
+
+      <div className="my-4 flex items-center gap-2 text-[11px] text-slate-500">
+        <div className="h-px flex-1 bg-slate-800" />
+        <span>o registrate con email</span>
+        <div className="h-px flex-1 bg-slate-800" />
+      </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-1">

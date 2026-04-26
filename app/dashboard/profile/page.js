@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "@/app/dashboard/_components/theme-toggle";
 
 const PLAN_LABEL = {
   inicio: "Inicio",
@@ -71,6 +72,8 @@ export default function ProfilePage() {
   const [selectedPlan, setSelectedPlan] = useState("inicio");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [documentId, setDocumentId] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -155,6 +158,8 @@ export default function ProfilePage() {
         setSelectedPlan(data.user.plan || "inicio");
         setName(data.user.name || "");
         setEmail(data.user.email || "");
+        setPhone(data.user.phone || "");
+        setDocumentId(data.user.documentId || "");
         setLoading(false);
       } catch {
         setError("Error inesperado al cargar perfil.");
@@ -181,6 +186,8 @@ export default function ProfilePage() {
       const payload = {
         name,
         email,
+        phone,
+        documentId,
       };
 
       if (currentPassword) payload.currentPassword = currentPassword;
@@ -209,6 +216,8 @@ export default function ProfilePage() {
       setTrialDaysLeft(calculateTrialDaysLeft(data.user.trialEndsAt));
       setName(data.user.name || "");
       setEmail(data.user.email || "");
+      setPhone(data.user.phone || "");
+      setDocumentId(data.user.documentId || "");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -385,6 +394,20 @@ export default function ProfilePage() {
         </div>
       )}
 
+      <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 md:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">
+              Preferencias
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Ajustes visuales de tu panel.
+            </p>
+          </div>
+          <ThemeToggle />
+        </div>
+      </section>
+
       <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-5">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold text-slate-100">Suscripción</h3>
@@ -512,10 +535,18 @@ export default function ProfilePage() {
 
       <form
         onSubmit={handleSubmit}
+        id="datos-personales"
         className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-5"
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-100">Datos de cuenta</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">
+              Modificar perfil
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Actualizá tus datos personales y de acceso.
+            </p>
+          </div>
           <button
             type="submit"
             disabled={saving}
@@ -526,6 +557,30 @@ export default function ProfilePage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-xs text-slate-300 font-medium">Teléfono</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              placeholder="+54 9 11 1234-5678"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-slate-300 font-medium">
+              Documento
+            </label>
+            <input
+              type="text"
+              value={documentId}
+              onChange={(e) => setDocumentId(e.target.value)}
+              className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              placeholder="DNI / Pasaporte"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-xs text-slate-300 font-medium">Nombre</label>
             <input

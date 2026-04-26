@@ -22,6 +22,31 @@ const UserSchema = new mongoose.Schema(
     },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, index: true },
+    emailVerified: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    emailVerificationCodeHash: {
+      type: String,
+      default: "",
+      select: false,
+    },
+    emailVerificationExpiresAt: {
+      type: Date,
+      default: null,
+      select: false,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    documentId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     passwordHash: { type: String, required: true },
     plan: {
       type: String,
@@ -58,6 +83,16 @@ const UserSchema = new mongoose.Schema(
     trialEndsAt: {
       type: Date,
       default: defaultTrialEndsAt,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      default: "",
+      select: false,
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      default: null,
+      select: false,
     },
   },
   { timestamps: true }

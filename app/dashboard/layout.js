@@ -1,9 +1,9 @@
 // app/dashboard/layout.js
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import Link from "next/link";
 import SidebarNav from "@/app/dashboard/_components/sidebar-nav";
 import MobileNav from "@/app/dashboard/_components/mobile-nav";
-import ThemeToggle from "@/app/dashboard/_components/theme-toggle";
 import BrandLogo from "@/app/_components/brand-logo";
 
 export const metadata = {
@@ -14,6 +14,7 @@ export const metadata = {
 const navItems = [
   { label: "Resumen", href: "/dashboard" },
   { label: "Reservas", href: "/dashboard/bookings" },
+  { label: "Calendario", href: "/dashboard/calendar" },
   { label: "Propiedades", href: "/dashboard/properties" },
   { label: "Habitaciones", href: "/dashboard/rooms" },
   { label: "Perfil", href: "/dashboard/profile" },
@@ -54,15 +55,15 @@ export default async function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased flex">
+    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased md:pl-64">
       {/* Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-slate-800 bg-slate-950/85">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-800 bg-slate-950/85 md:flex">
         <div className="px-4 py-4 border-b border-slate-800 flex items-center gap-2">
           <div>
             <BrandLogo
-              size="sm"
+              size="md"
               className="text-slate-100"
-              textClassName="text-slate-100"
+              textClassName="vk-display text-slate-100"
             />
             <p className="text-[11px] text-slate-500">
               Panel de administración
@@ -101,7 +102,7 @@ export default async function DashboardLayout({ children }) {
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex min-h-screen flex-col">
         {/* Topbar */}
         <header className="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -109,7 +110,12 @@ export default async function DashboardLayout({ children }) {
               Dashboard
             </h1>
             <div className="flex items-center gap-2 sm:gap-3">
-              <ThemeToggle />
+              <Link
+                href="/dashboard/profile#datos-personales"
+                className="md:hidden px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900/70 text-xs text-emerald-300 hover:bg-slate-800 transition-colors"
+              >
+                Perfil
+              </Link>
 
               <form method="POST" action="/api/auth/logout" className="md:hidden">
                 <button

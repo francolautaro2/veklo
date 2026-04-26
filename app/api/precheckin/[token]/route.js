@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Booking from "@/models/Booking";
 import Property from "@/models/Property";
@@ -31,6 +32,59 @@ function isPreCheckInExpired(booking) {
   const expiresAt = resolvePreCheckInExpiresAt(booking);
   if (!expiresAt) return false;
   return expiresAt.getTime() < Date.now();
+}
+
+async function findPropertyForTemplate(propertyId) {
+  if (!mongoose.Types.ObjectId.isValid(propertyId)) return null;
+  return Property.collection.findOne(
+    { _id: new mongoose.Types.ObjectId(propertyId) },
+    { projection: { name: 1, preCheckInTemplate: 1 } }
+  );
+}
+
+function normalizeTemplateFields(property) {
+  return (property?.preCheckInTemplate?.customFields || [])
+    .filter((field) => field?.label)
+    .map((field) => ({
+      fieldId: String(field.fieldId || ""),
+      label: field.label,
+      type: field.type || "boolean",
+      required: Boolean(field.required),
+      hasCost: Boolean(field.hasCost),
+      cost: field.hasCost ? Number(field.cost || 0) : 0,
+    }));
+}
+
+function normalizeCustomAnswers(fields, rawAnswers = {}) {
+  const answersById = rawAnswers && typeof rawAnswers === "object" ? rawAnswers : {};
+
+  return fields.map((field) => {
+    const rawValue = answersById[field.fieldId];
+    let value = "";
+
+    if (field.type === "boolean") {
+      value = rawValue === true || rawValue === "true";
+    } else {
+      value = String(rawValue || "").trim().slice(0, 500);
+    }
+
+    return {
+      fieldId: field.fieldId,
+      label: field.label,
+      type: field.type,
+      value,
+      hasCost: field.hasCost,
+      cost: field.hasCost && value ? field.cost : 0,
+    };
+  });
+}
+
+function findMissingRequiredField(fields, answers) {
+  return fields.find((field) => {
+    if (!field.required || field.type === "boolean") return false;
+    const answer = answers.find((item) => item.fieldId === field.fieldId);
+    return !String(answer?.value || "").trim();
+  });
 }
 
 export async function GET(_request, { params }) {
@@ -66,9 +120,11 @@ export async function GET(_request, { params }) {
   const preCheckInExpiresAt = resolvePreCheckInExpiresAt(booking);
 
   const [property, room] = await Promise.all([
-    Property.findById(booking.propertyId).select("name").lean(),
+    findPropertyForTemplate(booking.propertyId),
     Room.findById(booking.roomId).select("name").lean(),
   ]);
+
+  const templateFields = normalizeTemplateFields(property);
 
   return NextResponse.json({
     booking: {
@@ -84,6 +140,8 @@ export async function GET(_request, { params }) {
       preCheckInStatus: booking.preCheckIn?.status || "pending",
       preCheckInCompletedAt: booking.preCheckIn?.completedAt || null,
       preCheckInExpiresAt,
+      customFields: templateFields,
+      customAnswers: booking.preCheckIn?.customAnswers || [],
       deposit: {
         amount: booking.deposit?.amount || 0,
         status: booking.deposit?.status || "not_required",
@@ -123,7 +181,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  const { guestName, guestEmail, guestPhone, documentId, notes } =
+  const { guestName, guestEmail, guestPhone, documentId, notes, customAnswers } =
     await request.json();
 
   const normalizedGuestName = guestName?.trim();
@@ -146,6 +204,24 @@ export async function POST(request, { params }) {
     );
   }
 
+  const bookingProperty = await findPropertyForTemplate(booking.propertyId);
+  const templateFields = normalizeTemplateFields(bookingProperty);
+  const normalizedCustomAnswers = normalizeCustomAnswers(
+    templateFields,
+    customAnswers
+  );
+  const missingField = findMissingRequiredField(
+    templateFields,
+    normalizedCustomAnswers
+  );
+
+  if (missingField) {
+    return NextResponse.json(
+      { error: `Completá el campo "${missingField.label}".` },
+      { status: 400 }
+    );
+  }
+
   if (!booking.preCheckIn) {
     booking.preCheckIn = {
       status: "pending",
@@ -163,19 +239,19 @@ export async function POST(request, { params }) {
   booking.preCheckIn.completedAt = new Date();
   booking.preCheckIn.documentId = normalizedDocumentId;
   booking.preCheckIn.notes = normalizedNotes;
+  booking.preCheckIn.customAnswers = normalizedCustomAnswers;
 
   await booking.save();
 
-  const [owner, property, room] = await Promise.all([
+  const [owner, room] = await Promise.all([
     User.findById(booking.ownerId).select("email").lean(),
-    Property.findById(booking.propertyId).select("name").lean(),
     Room.findById(booking.roomId).select("name").lean(),
   ]);
 
   sendPreCheckInCompletedNotification({
     booking,
     ownerEmail: owner?.email,
-    propertyName: property?.name || "Propiedad",
+    propertyName: bookingProperty?.name || "Propiedad",
     roomName: room?.name || "Habitación",
   });
 

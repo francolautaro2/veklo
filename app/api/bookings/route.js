@@ -39,6 +39,13 @@ function parseDepositAmount(value) {
   return Math.round(num * 100) / 100;
 }
 
+function parseMoney(value) {
+  if (value === undefined || value === null || value === "") return 0;
+  const num = Number(value);
+  if (!Number.isFinite(num) || num < 0) return null;
+  return Math.round(num * 100) / 100;
+}
+
 function createPreCheckInToken() {
   return crypto.randomBytes(16).toString("hex");
 }
@@ -135,6 +142,9 @@ export async function POST(request) {
     checkOut,
     depositAmount,
     depositPaymentLink,
+    monto_total,
+    monto_pagado,
+    fecha_vencimiento_pago,
   } = await request.json();
 
   const normalizedGuestName = guestName?.trim();
@@ -142,6 +152,8 @@ export async function POST(request) {
   const normalizedGuestPhone = guestPhone?.trim() || "";
   const normalizedDepositPaymentLink = depositPaymentLink?.trim() || "";
   const normalizedDepositAmount = parseDepositAmount(depositAmount);
+  const normalizedTotalAmount = parseMoney(monto_total ?? depositAmount);
+  const normalizedPaidAmount = parseMoney(monto_pagado);
 
   if (!propertyId || !roomId || !normalizedGuestName || !checkIn || !checkOut) {
     return NextResponse.json(
@@ -161,6 +173,10 @@ export async function POST(request) {
     return NextResponse.json({ error: "Monto de seña inválido." }, { status: 400 });
   }
 
+  if (normalizedTotalAmount === null || normalizedPaidAmount === null) {
+    return NextResponse.json({ error: "Monto de pago inválido." }, { status: 400 });
+  }
+
   if (
     normalizedDepositPaymentLink &&
     !isValidHttpUrl(normalizedDepositPaymentLink)
@@ -173,6 +189,7 @@ export async function POST(request) {
 
   const ci = parseLocalDate(checkIn);
   const co = parseLocalDate(checkOut);
+  const paymentDueAt = parseLocalDate(fecha_vencimiento_pago) || ci;
 
   // 1) Validar que las fechas tengan sentido
   if (!ci || !co || isNaN(ci.getTime()) || isNaN(co.getTime())) {
@@ -248,6 +265,15 @@ export async function POST(request) {
   try {
     const token = createPreCheckInToken();
     const hasDeposit = normalizedDepositAmount > 0 || normalizedDepositPaymentLink;
+    const paidAmount = Math.min(normalizedPaidAmount, normalizedTotalAmount);
+    const paymentStatus =
+      normalizedTotalAmount <= 0
+        ? "pagado"
+        : paidAmount >= normalizedTotalAmount
+          ? "pagado"
+          : paidAmount > 0
+            ? "parcial"
+            : "pendiente";
 
     const booking = await Booking.create({
       organizationId:
@@ -261,6 +287,12 @@ export async function POST(request) {
       checkIn: ci,
       checkOut: co,
       status: "reserved",
+      monto_total: normalizedTotalAmount,
+      monto_pagado: paidAmount,
+      estado_pago: paymentStatus,
+      fecha_pago: paidAmount > 0 ? new Date() : null,
+      metodo_pago: paidAmount > 0 ? "otro" : null,
+      fecha_vencimiento_pago: paymentDueAt,
       preCheckIn: {
         status: "pending",
         token,
