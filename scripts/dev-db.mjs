@@ -1,7 +1,5 @@
 // scripts/dev-db.mjs
-// MongoDB local para desarrollo, sin Docker ni instalación: la primera vez
-// descarga el binario de mongod. Los datos quedan en .mongo-dev/ y se conservan
-// entre ejecuciones. Uso: npm run db  (Ctrl+C para detener)
+// este archivo me descarga mongodb manualmente para pruebas rapidas, sin necesidad de crear un contenedor de la app completamente
 import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
