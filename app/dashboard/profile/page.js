@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/app/dashboard/_components/theme-toggle";
-
-const PLAN_LABEL = {
-  inicio: "Inicio",
-  pro: "Pro",
-  plus: "Plus",
-};
+import {
+  DEFAULT_PLAN,
+  PLAN_LIMITS,
+  formatPlanPrice,
+  normalizePlan,
+} from "@/lib/subscription";
 
 const STATUS_LABEL = {
   trialing: "En prueba",
@@ -16,17 +16,7 @@ const STATUS_LABEL = {
   paused: "Pausado",
 };
 
-const PLAN_OPTIONS = [
-  { value: "inicio", label: "Inicio" },
-  { value: "pro", label: "Pro" },
-  { value: "plus", label: "Plus" },
-];
-
-const PLAN_DESCRIPTION = {
-  inicio: "1 propiedad y hasta 25 habitaciones",
-  pro: "Hasta 5 propiedades con habitaciones ilimitadas",
-  plus: "Propiedades y habitaciones ilimitadas",
-};
+const PLAN_OPTIONS = Object.values(PLAN_LIMITS);
 
 const STATUS_BADGE_CLASS = {
   trialing: "border-amber-500/40 bg-amber-500/10 text-amber-200",
@@ -69,7 +59,7 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState(null);
   const [trialDaysLeft, setTrialDaysLeft] = useState(null);
-  const [selectedPlan, setSelectedPlan] = useState("inicio");
+  const [selectedPlan, setSelectedPlan] = useState(DEFAULT_PLAN);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,7 +68,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const currentPlan = profile?.plan || "inicio";
+  const currentPlan = normalizePlan(profile?.plan);
   const currentStatus = profile?.subscriptionStatus || "trialing";
   const statusLabel = STATUS_LABEL[currentStatus] || currentStatus;
   const statusBadgeClass =
@@ -155,7 +145,7 @@ export default function ProfilePage() {
 
         setProfile(data.user);
         setTrialDaysLeft(calculateTrialDaysLeft(data.user.trialEndsAt));
-        setSelectedPlan(data.user.plan || "inicio");
+        setSelectedPlan(normalizePlan(data.user.plan));
         setName(data.user.name || "");
         setEmail(data.user.email || "");
         setPhone(data.user.phone || "");
@@ -408,7 +398,10 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-5">
+      <section
+        id="suscripcion"
+        className="scroll-mt-6 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-5"
+      >
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold text-slate-100">Suscripción</h3>
           <p className="text-xs text-slate-400">
@@ -421,10 +414,10 @@ export default function ProfilePage() {
           <article className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
             <p className="text-[11px] text-slate-400 mb-1">Plan actual</p>
             <p className="text-base font-semibold text-slate-100">
-              {PLAN_LABEL[currentPlan] || currentPlan || "-"}
+              {PLAN_LIMITS[currentPlan].label}
             </p>
             <p className="text-[11px] text-slate-500 mt-1">
-              {PLAN_DESCRIPTION[currentPlan] || "Plan personalizado"}
+              {PLAN_LIMITS[currentPlan].description}
             </p>
           </article>
 
@@ -471,13 +464,13 @@ export default function ProfilePage() {
                 className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               >
                 {PLAN_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
+                  <option key={option.key} value={option.key}>
+                    {option.label} · {formatPlanPrice(option.key)} / mes
                   </option>
                 ))}
               </select>
               <p className="text-[11px] text-slate-500">
-                {PLAN_DESCRIPTION[selectedPlan] || "Plan personalizado"}
+                {PLAN_LIMITS[normalizePlan(selectedPlan)].description}
               </p>
             </div>
 

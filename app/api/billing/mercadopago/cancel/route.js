@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserContextFromRequest } from "@/lib/auth";
 import {
   cancelMercadoPagoPreapproval,
   syncUserSubscriptionFromPreapproval,
@@ -22,7 +22,7 @@ function buildSafeBilling(user) {
 export async function POST(request) {
   await dbConnect();
 
-  const sessionUser = getUserFromRequest(request);
+  const sessionUser = await getUserContextFromRequest(request);
   if (!sessionUser) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
@@ -48,6 +48,7 @@ export async function POST(request) {
 
     return NextResponse.json({ billing: buildSafeBilling(user) }, { status: 200 });
   } catch (error) {
+    console.error("[billing/mercadopago/cancel]", error);
     return NextResponse.json(
       {
         error:

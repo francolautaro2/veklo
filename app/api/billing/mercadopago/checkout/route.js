@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserContextFromRequest } from "@/lib/auth";
 import {
   getPlanAmount,
   getPlanConfig,
@@ -25,7 +25,7 @@ function isTestUserEmail(email) {
 export async function POST(request) {
   await dbConnect();
 
-  const sessionUser = getUserFromRequest(request);
+  const sessionUser = await getUserContextFromRequest(request);
   if (!sessionUser) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
@@ -142,6 +142,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
+    console.error("[billing/mercadopago/checkout]", error);
     return NextResponse.json(
       {
         error:

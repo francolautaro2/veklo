@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DEFAULT_PLAN } from "@/lib/subscription";
 
 const GOOGLE_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const GOOGLE_SCRIPT_ATTR = "data-google-gsi-client";
@@ -170,7 +171,7 @@ function buildGoogleRedirectUrl({
 
 export default function GoogleAuthButton({
   mode = "login",
-  plan = "inicio",
+  plan = DEFAULT_PLAN,
   onError,
   onStart,
   onDone,
@@ -202,7 +203,7 @@ export default function GoogleAuthButton({
 
     const state = createRandomToken();
     const nonce = createRandomToken();
-    const selectedPlan = String(plan || "inicio");
+    const selectedPlan = String(plan || DEFAULT_PLAN);
     const redirectUri = `${window.location.origin}/auth/google/callback`;
 
     try {

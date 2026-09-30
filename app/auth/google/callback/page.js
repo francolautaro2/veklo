@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DEFAULT_PLAN } from "@/lib/subscription";
 
 const OAUTH_STATE_KEY = "google_oauth_state";
 const OAUTH_NONCE_KEY = "google_oauth_nonce";
@@ -38,7 +39,7 @@ export default function GoogleAuthCallbackPage() {
 
       const expectedState = sessionStorage.getItem(OAUTH_STATE_KEY) || "";
       const nonce = sessionStorage.getItem(OAUTH_NONCE_KEY) || "";
-      const plan = sessionStorage.getItem(OAUTH_PLAN_KEY) || "inicio";
+      const plan = sessionStorage.getItem(OAUTH_PLAN_KEY) || DEFAULT_PLAN;
 
       sessionStorage.removeItem(OAUTH_STATE_KEY);
       sessionStorage.removeItem(OAUTH_NONCE_KEY);

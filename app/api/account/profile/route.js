@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import { getUserFromRequest } from "@/lib/auth";
+import {
+  createSessionToken,
+  getUserContextFromRequest,
+  setSessionCookie,
+} from "@/lib/auth";
 import { ensureUserOrganization } from "@/lib/organization";
 
 function isValidEmail(value) {
@@ -35,7 +38,7 @@ function buildSafeUser(user) {
 export async function GET(request) {
   await dbConnect();
 
-  const sessionUser = getUserFromRequest(request);
+  const sessionUser = await getUserContextFromRequest(request);
   if (!sessionUser) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
@@ -56,7 +59,7 @@ export async function GET(request) {
 export async function PUT(request) {
   await dbConnect();
 
-  const sessionUser = getUserFromRequest(request);
+  const sessionUser = await getUserContextFromRequest(request);
   if (!sessionUser) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
@@ -179,40 +182,17 @@ export async function PUT(request) {
   if (wantsDocumentIdChange) user.documentId = normalizedDocumentId;
   if (wantsPasswordChange) {
     user.passwordHash = await bcrypt.hash(normalizedNewPassword, 10);
+    // Cierra las demás sesiones abiertas; esta se renueva abajo.
+    user.sessionVersion = (user.sessionVersion || 0) + 1;
   }
 
   await user.save();
 
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    return NextResponse.json(
-      { error: "Configuracion de autenticacion incompleta." },
-      { status: 500 }
-    );
-  }
-
-  const payload = {
-    sub: user._id.toString(),
-    email: user.email,
-    name: user.name,
-    organizationId: user.organizationId?.toString() || null,
-    role: user.role || "owner",
-    plan: user.plan,
-  };
-
-  const token = jwt.sign(payload, jwtSecret, { expiresIn: "7d" });
   const response = NextResponse.json(
     { user: buildSafeUser(user), message: "Perfil actualizado correctamente." },
     { status: 200 }
   );
-
-  response.cookies.set("hotel_saas_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  setSessionCookie(response, createSessionToken(user));
 
   return response;
 }

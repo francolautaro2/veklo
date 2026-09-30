@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import User from "@/models/User";
-import { hashEmailCode } from "@/lib/auth-codes";
+import { consumeCodeAttempt } from "@/lib/auth-codes";
+import { enforceRateLimits, getClientIp, MINUTE_MS } from "@/lib/rate-limit";
 
 export async function POST(request) {
   try {
@@ -18,15 +18,27 @@ export async function POST(request) {
       );
     }
 
-    const user = await User.findOne({
+    const limited = await enforceRateLimits([
+      {
+        key: `password-reset-code:ip:${getClientIp(request)}`,
+        limit: 30,
+        windowMs: 15 * MINUTE_MS,
+      },
+    ]);
+    if (limited) return limited;
+
+    const user = await consumeCodeAttempt({
       email: normalizedEmail,
-      passwordResetTokenHash: hashEmailCode(normalizedCode),
-      passwordResetExpiresAt: { $gt: new Date() },
-    }).select("_id");
+      code: normalizedCode,
+      purpose: "passwordReset",
+    });
 
     if (!user) {
       return NextResponse.json(
-        { error: "El código es inválido o venció. Pedí uno nuevo." },
+        {
+          error:
+            "El código es inválido o venció. Si fallaste varias veces, pedí uno nuevo.",
+        },
         { status: 400 }
       );
     }
@@ -34,7 +46,8 @@ export async function POST(request) {
     return NextResponse.json({
       message: "Código verificado. Ahora creá tu nueva contraseña.",
     });
-  } catch {
+  } catch (error) {
+    console.error("[auth/password-reset/verify]", error);
     return NextResponse.json(
       { error: "No se pudo verificar el código." },
       { status: 500 }

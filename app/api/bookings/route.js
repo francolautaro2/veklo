@@ -1,21 +1,13 @@
 // app/api/bookings/route.js
 import crypto from "node:crypto";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Booking from "@/models/Booking";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
-import User from "@/models/User";
-import { getUserContextFromRequest } from "@/lib/auth";
-import { getAccessDeniedMessage, hasAccountAccess } from "@/lib/subscription";
+import { getAccessDeniedResponse, getUserContextFromRequest } from "@/lib/auth";
 import { sendBookingConfirmation } from "@/lib/email";
-
-function parseLocalDate(value) {
-  if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-}
+import { getAppTimeZone, parseDateOnly, todayDateOnly } from "@/lib/date-only";
 
 function isValidEmail(value) {
   if (!value) return false;
@@ -119,18 +111,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  const account = await User.findById(user.id).select(
-    "subscriptionStatus trialEndsAt"
-  );
-  if (!account) {
-    return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
-  }
-  if (!hasAccountAccess(account)) {
-    return NextResponse.json(
-      { error: getAccessDeniedMessage() },
-      { status: 402 }
-    );
-  }
+  const denied = getAccessDeniedResponse(user);
+  if (denied) return denied;
 
   const {
     propertyId,
@@ -187,9 +169,9 @@ export async function POST(request) {
     );
   }
 
-  const ci = parseLocalDate(checkIn);
-  const co = parseLocalDate(checkOut);
-  const paymentDueAt = parseLocalDate(fecha_vencimiento_pago) || ci;
+  const ci = parseDateOnly(checkIn);
+  const co = parseDateOnly(checkOut);
+  const paymentDueAt = parseDateOnly(fecha_vencimiento_pago) || ci;
 
   // 1) Validar que las fechas tengan sentido
   if (!ci || !co || isNaN(ci.getTime()) || isNaN(co.getTime())) {
@@ -290,7 +272,7 @@ export async function POST(request) {
       monto_total: normalizedTotalAmount,
       monto_pagado: paidAmount,
       estado_pago: paymentStatus,
-      fecha_pago: paidAmount > 0 ? new Date() : null,
+      fecha_pago: paidAmount > 0 ? todayDateOnly(getAppTimeZone()) : null,
       metodo_pago: paidAmount > 0 ? "otro" : null,
       fecha_vencimiento_pago: paymentDueAt,
       preCheckIn: {
@@ -308,12 +290,16 @@ export async function POST(request) {
     const appUrl = process.env.APP_URL || new URL(request.url).origin;
     const preCheckInUrl = `${appUrl}/precheckin/${token}`;
 
-    sendBookingConfirmation({
-      booking,
-      preCheckInUrl,
-      propertyName: property.name,
-      roomName: room.name,
-    });
+    // after(): el email se envía después de responder, sin que la plataforma
+    // corte la función antes de terminar.
+    after(() =>
+      sendBookingConfirmation({
+        booking,
+        preCheckInUrl,
+        propertyName: property.name,
+        roomName: room.name,
+      })
+    );
 
     return NextResponse.json(
       {
@@ -324,7 +310,8 @@ export async function POST(request) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    console.error("[bookings]", error);
     return NextResponse.json({ error: "Error al crear reserva." }, { status: 400 });
   }
 }

@@ -18,6 +18,15 @@ import {
   YAxis,
 } from "recharts";
 import BrandLogo from "@/app/_components/brand-logo";
+import {
+  addDays,
+  formatDateOnly,
+  isSameDateOnly,
+  toDateKey,
+  toDateOnly,
+  todayDateOnly,
+  todayKey,
+} from "@/lib/date-only";
 
 const BRAND_COLOR = "#D85A30";
 const SPARKLINE_DATA = {
@@ -102,27 +111,16 @@ function formatCurrency(value) {
   }).format(number);
 }
 
-function formatDateInput(date = new Date()) {
-  return date.toISOString().slice(0, 10);
-}
-
 function formatDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("es-AR", {
+  return formatDateOnly(value, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
 }
 
-function formatTime(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "--:--";
-  return date.toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatShortDate(value) {
+  return formatDateOnly(value, { day: "2-digit", month: "2-digit" });
 }
 
 function parseMoney(value) {
@@ -141,35 +139,14 @@ function getGuestLastName(name) {
   return parts[parts.length - 1] || name;
 }
 
-function isSameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
+// Fecha de calendario de hoy (según el navegador) + `days` días.
 function getDateOffset(days) {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + days);
-  return date;
-}
-
-function addDays(date, days) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + days);
-  return next;
+  return addDays(todayDateOnly(), days);
 }
 
 function isCurrentMonth(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  const now = new Date();
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth()
-  );
+  const key = toDateKey(value);
+  return Boolean(key) && key.slice(0, 7) === todayKey().slice(0, 7);
 }
 
 function getBookingNights(booking) {
@@ -256,10 +233,11 @@ function getAgendaForTab(bookings, tab, roomMap, propertyMap) {
   const tomorrow = getDateOffset(1);
   const weekEnd = getDateOffset(7);
 
-  const matchesTab = (date) => {
-    if (tab === "today") return isSameDay(date, today);
-    if (tab === "tomorrow") return isSameDay(date, tomorrow);
-    return date >= today && date < weekEnd;
+  const matchesTab = (value) => {
+    if (tab === "today") return isSameDateOnly(value, today);
+    if (tab === "tomorrow") return isSameDateOnly(value, tomorrow);
+    const date = toDateOnly(value);
+    return Boolean(date) && date >= today && date < weekEnd;
   };
 
   const mapBooking = (booking, type) => {
@@ -269,7 +247,7 @@ function getAgendaForTab(bookings, tab, roomMap, propertyMap) {
       guestName: enriched.guestName,
       roomName: enriched.roomName,
       propertyName: enriched.propertyName,
-      time: formatTime(type === "in" ? enriched.checkIn : enriched.checkOut),
+      time: formatShortDate(type === "in" ? enriched.checkIn : enriched.checkOut),
       paymentStatus: enriched.payment.status,
       paymentOverdue: enriched.payment.isOverdue,
     };
@@ -278,11 +256,11 @@ function getAgendaForTab(bookings, tab, roomMap, propertyMap) {
   return {
     checkIns: bookings
       .filter((booking) => booking.status !== "cancelled")
-      .filter((booking) => matchesTab(new Date(booking.checkIn)))
+      .filter((booking) => matchesTab(booking.checkIn))
       .map((booking) => mapBooking(booking, "in")),
     checkOuts: bookings
       .filter((booking) => booking.status !== "cancelled")
-      .filter((booking) => matchesTab(new Date(booking.checkOut)))
+      .filter((booking) => matchesTab(booking.checkOut))
       .map((booking) => mapBooking(booking, "out")),
   };
 }
@@ -1463,7 +1441,7 @@ export default function DashboardHome() {
   const [paymentModalBooking, setPaymentModalBooking] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("transferencia");
-  const [paymentDate, setPaymentDate] = useState(formatDateInput());
+  const [paymentDate, setPaymentDate] = useState(todayKey());
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentError, setPaymentError] = useState("");
@@ -1741,7 +1719,7 @@ export default function DashboardHome() {
     setPaymentModalBooking(booking);
     setPaymentAmount(String(booking.payment.pending));
     setPaymentMethod("transferencia");
-    setPaymentDate(formatDateInput());
+    setPaymentDate(todayKey());
     setPaymentNotes("");
     setPaymentError("");
   }
@@ -1782,7 +1760,7 @@ export default function DashboardHome() {
       if (!res.ok) {
         setPaymentError(
           data.error ||
-            "No se pudo confirmar el pago. TODO: implementar PATCH /api/bookings/:id para campos de cobro manual."
+            "No se pudo confirmar el pago. Intentá de nuevo."
         );
         setPaymentSaving(false);
         return;
@@ -1794,7 +1772,7 @@ export default function DashboardHome() {
       await fetchOperationalData();
     } catch {
       setPaymentError(
-        "No se pudo confirmar el pago. TODO: implementar PATCH /api/bookings/:id para campos de cobro manual."
+        "No se pudo confirmar el pago. Intentá de nuevo."
       );
       setPaymentSaving(false);
     }

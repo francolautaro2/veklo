@@ -4,20 +4,17 @@ import { getUserContextFromRequest } from "@/lib/auth";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
 import Booking from "@/models/Booking";
+import {
+  addDays,
+  formatDateOnly,
+  getAppTimeZone,
+  todayDateOnly,
+} from "@/lib/date-only";
 
+// [start, end): los últimos `days` días incluyendo hoy (zona horaria del negocio).
 function getRangeDays(days = 7) {
-  const today = new Date();
-  const end = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    23,
-    59,
-    59
-  );
-
-  const start = new Date(end);
-  start.setDate(start.getDate() - (days - 1));
+  const end = addDays(todayDateOnly(getAppTimeZone()), 1);
+  const start = addDays(end, -days);
 
   return { start, end };
 }
@@ -102,21 +99,17 @@ export async function GET(request) {
   const bookings = await Booking.find({
     ...bookingBaseFilter,
     status: { $ne: "cancelled" },
-    checkIn: { $lte: end },
-    checkOut: { $gte: start },
+    checkIn: { $lt: end },
+    checkOut: { $gt: start },
   }).lean();
 
   const data = [];
 
   for (let i = 0; i < days; i++) {
-    const dayStart = new Date(start);
-    dayStart.setDate(start.getDate() + i);
-    dayStart.setHours(0, 0, 0, 0);
+    const dayStart = addDays(start, i);
+    const dayEnd = addDays(dayStart, 1);
 
-    const dayEnd = new Date(dayStart);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const label = dayStart.toLocaleDateString("es-AR", {
+    const label = formatDateOnly(dayStart, {
       day: "2-digit",
       month: "2-digit",
     });
@@ -129,12 +122,13 @@ export async function GET(request) {
       const bIn = new Date(b.checkIn);
       const bOut = new Date(b.checkOut);
 
-      if (bIn <= dayEnd && bOut >= dayStart) {
+      // Ocupada si el huésped pasa la noche de ese día
+      if (bIn < dayEnd && bOut >= dayEnd) {
         roomsOccupiedSet.add(String(b.roomId));
       }
 
-      if (bIn >= dayStart && bIn <= dayEnd) checkIns++;
-      if (bOut >= dayStart && bOut <= dayEnd) checkOuts++;
+      if (bIn >= dayStart && bIn < dayEnd) checkIns++;
+      if (bOut >= dayStart && bOut < dayEnd) checkOuts++;
     }
 
     const occupiedRooms = roomsOccupiedSet.size;

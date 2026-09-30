@@ -7,6 +7,15 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
   },
+  // Solo en producción: fuerza HTTPS en el navegador durante 2 años.
+  ...(process.env.NODE_ENV === "production"
+    ? [
+        {
+          key: "Strict-Transport-Security",
+          value: "max-age=63072000; includeSubDomains",
+        },
+      ]
+    : []),
 ];
 
 const baseAllowedDevOrigins = ["localhost", "127.0.0.1", "192.168.1.39"];

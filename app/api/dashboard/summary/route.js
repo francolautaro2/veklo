@@ -4,28 +4,12 @@ import { getUserContextFromRequest } from "@/lib/auth";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
 import Booking from "@/models/Booking";
+import { addDays, getAppTimeZone, todayDateOnly } from "@/lib/date-only";
 
+// [start, end): el día de hoy en la zona horaria del negocio.
 function getTodayRange() {
-  const now = new Date();
-  const start = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const end = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
-  return { start, end };
+  const start = todayDateOnly(getAppTimeZone());
+  return { start, end: addDays(start, 1) };
 }
 
 function buildPropertyScope(user) {
@@ -121,23 +105,23 @@ export async function GET(request) {
   // Check-ins hoy
   const todayCheckins = await Booking.countDocuments({
     ...bookingBaseFilter,
-    checkIn: { $gte: start, $lte: end },
+    checkIn: { $gte: start, $lt: end },
     status: { $ne: "cancelled" },
   });
 
   // Check-outs hoy
   const todayCheckouts = await Booking.countDocuments({
     ...bookingBaseFilter,
-    checkOut: { $gte: start, $lte: end },
+    checkOut: { $gte: start, $lt: end },
     status: { $ne: "cancelled" },
   });
 
-  // Ocupación actual (habitaciones ocupadas hoy, aprox por reservas activas)
+  // Ocupación de esta noche: entraron hoy o antes y salen mañana o después
   const todayOccupiedRooms = await Booking.countDocuments({
     ...bookingBaseFilter,
     status: { $in: ["reserved", "checked_in"] },
-    checkIn: { $lte: end },
-    checkOut: { $gte: start },
+    checkIn: { $lt: end },
+    checkOut: { $gte: end },
   });
 
   // Reservas por estado

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Booking from "@/models/Booking";
@@ -248,12 +248,14 @@ export async function POST(request, { params }) {
     Room.findById(booking.roomId).select("name").lean(),
   ]);
 
-  sendPreCheckInCompletedNotification({
-    booking,
-    ownerEmail: owner?.email,
-    propertyName: bookingProperty?.name || "Propiedad",
-    roomName: room?.name || "Habitación",
-  });
+  after(() =>
+    sendPreCheckInCompletedNotification({
+      booking,
+      ownerEmail: owner?.email,
+      propertyName: bookingProperty?.name || "Propiedad",
+      roomName: room?.name || "Habitación",
+    })
+  );
 
   return NextResponse.json(
     {

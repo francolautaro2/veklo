@@ -42,6 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /mongo-data
+/.mongo-dev
 .github
 .codex
 /scraper/

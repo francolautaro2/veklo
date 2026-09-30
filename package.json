@@ -7,7 +7,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "seed:demo": "node scripts/seed-demo.mjs"
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "db": "node scripts/dev-db.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -28,6 +29,7 @@
     "daisyui": "^5.5.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "mongodb-memory-server": "^10.4.3",
     "tailwindcss": "^4.1.17"
   }
 }

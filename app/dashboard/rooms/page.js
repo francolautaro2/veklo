@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 const propertyTypesLabel = {
   hotel: "Hotel",
@@ -32,10 +33,11 @@ export default function RoomsPage() {
   const [updatingRoomId, setUpdatingRoomId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [priceDrafts, setPriceDrafts] = useState({});
+  const [roomDrafts, setRoomDrafts] = useState({});
 
   const [selectedIcalRoomId, setSelectedIcalRoomId] = useState("");
   const [icalConfig, setIcalConfig] = useState(null);
+  const [icalLockedMessage, setIcalLockedMessage] = useState("");
   const [loadingIcal, setLoadingIcal] = useState(false);
   const [savingIcal, setSavingIcal] = useState(false);
   const [syncingSourceId, setSyncingSourceId] = useState("");
@@ -43,12 +45,23 @@ export default function RoomsPage() {
   const [newIcalName, setNewIcalName] = useState("");
   const [newIcalUrl, setNewIcalUrl] = useState("");
 
-  function syncPriceDrafts(nextRooms) {
+  function syncRoomDrafts(nextRooms) {
     const drafts = {};
     nextRooms.forEach((room) => {
-      drafts[String(room._id)] = String(room.basePrice ?? 0);
+      drafts[String(room._id)] = {
+        name: room.name || "",
+        capacity: String(room.capacity ?? 2),
+        basePrice: String(room.basePrice ?? 0),
+      };
     });
-    setPriceDrafts(drafts);
+    setRoomDrafts(drafts);
+  }
+
+  function updateRoomDraft(roomId, field, value) {
+    setRoomDrafts((prev) => ({
+      ...prev,
+      [String(roomId)]: { ...prev[String(roomId)], [field]: value },
+    }));
   }
 
   async function fetchProperties() {
@@ -94,7 +107,7 @@ export default function RoomsPage() {
 
       const nextRooms = data.rooms || [];
       setRooms(nextRooms);
-      syncPriceDrafts(nextRooms);
+      syncRoomDrafts(nextRooms);
       setLoadingRooms(false);
     } catch (err) {
       console.error(err);
@@ -118,6 +131,13 @@ export default function RoomsPage() {
       }
 
       const data = await res.json();
+      if (res.status === 403 && data.code === "PLAN_REQUIRED") {
+        setIcalLockedMessage(data.error);
+        setIcalConfig(null);
+        setLoadingIcal(false);
+        return;
+      }
+
       if (!res.ok) {
         setError(data.error || "No se pudo cargar la configuración iCal.");
         setLoadingIcal(false);
@@ -251,7 +271,7 @@ export default function RoomsPage() {
       setBasePrice(0);
       setRooms((prev) => {
         const next = [data.room, ...prev];
-        syncPriceDrafts(next);
+        syncRoomDrafts(next);
         return next;
       });
       setNotice("Habitación creada correctamente.");
@@ -263,13 +283,24 @@ export default function RoomsPage() {
     }
   }
 
-  async function handleUpdateRoomPrice(roomId) {
+  async function handleSaveRoom(roomId) {
     setError("");
     setNotice("");
 
-    const draftValue = priceDrafts[String(roomId)];
-    const parsedPrice = Number(draftValue);
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+    const draft = roomDrafts[String(roomId)] || {};
+    const name = String(draft.name || "").trim();
+    const capacity = Number(draft.capacity);
+    const basePrice = Number(draft.basePrice);
+
+    if (!name) {
+      setError("El nombre de la habitación no puede estar vacío.");
+      return;
+    }
+    if (!Number.isInteger(capacity) || capacity < 1) {
+      setError("Ingresá una capacidad válida (número entero mayor a 0).");
+      return;
+    }
+    if (!Number.isFinite(basePrice) || basePrice < 0) {
       setError("Ingresá un precio válido mayor o igual a 0.");
       return;
     }
@@ -279,7 +310,7 @@ export default function RoomsPage() {
       const res = await fetch(`/api/rooms/${roomId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ basePrice: parsedPrice }),
+        body: JSON.stringify({ name, capacity, basePrice }),
       });
 
       if (res.status === 401) {
@@ -290,7 +321,7 @@ export default function RoomsPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "No se pudo actualizar el precio.");
+        setError(data.error || "No se pudo actualizar la habitación.");
         setUpdatingRoomId("");
         return;
       }
@@ -299,14 +330,54 @@ export default function RoomsPage() {
         const next = prev.map((room) =>
           String(room._id) === String(roomId) ? data.room : room
         );
-        syncPriceDrafts(next);
+        syncRoomDrafts(next);
         return next;
       });
-      setNotice("Precio actualizado correctamente.");
+      setNotice("Habitación actualizada correctamente.");
       setUpdatingRoomId("");
     } catch (err) {
       console.error(err);
-      setError("Error inesperado al actualizar el precio.");
+      setError("Error inesperado al actualizar la habitación.");
+      setUpdatingRoomId("");
+    }
+  }
+
+  async function handleDeleteRoom(room) {
+    setError("");
+    setNotice("");
+
+    const confirmed = window.confirm(
+      `¿Eliminar la habitación "${room.name}"? También se borran sus reservas pasadas y canceladas. Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setUpdatingRoomId(String(room._id));
+    try {
+      const res = await fetch(`/api/rooms/${room._id}`, { method: "DELETE" });
+
+      if (res.status === 401) {
+        router.push("/auth/login");
+        setUpdatingRoomId("");
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "No se pudo eliminar la habitación.");
+        setUpdatingRoomId("");
+        return;
+      }
+
+      setRooms((prev) => {
+        const next = prev.filter((item) => String(item._id) !== String(room._id));
+        syncRoomDrafts(next);
+        return next;
+      });
+      setNotice("Habitación eliminada.");
+      setUpdatingRoomId("");
+    } catch (err) {
+      console.error(err);
+      setError("Error inesperado al eliminar la habitación.");
       setUpdatingRoomId("");
     }
   }
@@ -543,7 +614,7 @@ export default function RoomsPage() {
                   <th className="text-left py-2">Capacidad</th>
                   <th className="text-left py-2">Precio base</th>
                   <th className="text-left py-2">Creado</th>
-                  <th className="text-left py-2">Acción</th>
+                  <th className="text-left py-2">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -552,8 +623,31 @@ export default function RoomsPage() {
                     key={r._id}
                     className="border-b border-slate-900/60 last:border-none"
                   >
-                    <td className="py-2">{r.name}</td>
-                    <td className="py-2">{r.capacity}</td>
+                    <td className="py-2 pr-2">
+                      <input
+                        type="text"
+                        maxLength={80}
+                        aria-label="Nombre de la habitación"
+                        value={roomDrafts[String(r._id)]?.name ?? ""}
+                        onChange={(e) =>
+                          updateRoomDraft(r._id, "name", e.target.value)
+                        }
+                        className="w-36 rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </td>
+                    <td className="py-2 pr-2">
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        aria-label="Capacidad"
+                        value={roomDrafts[String(r._id)]?.capacity ?? ""}
+                        onChange={(e) =>
+                          updateRoomDraft(r._id, "capacity", e.target.value)
+                        }
+                        className="w-16 rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </td>
                     <td className="py-2">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-400">$</span>
@@ -561,12 +655,10 @@ export default function RoomsPage() {
                           type="number"
                           min={0}
                           step="0.01"
-                          value={priceDrafts[String(r._id)] ?? ""}
+                          aria-label="Precio base"
+                          value={roomDrafts[String(r._id)]?.basePrice ?? ""}
                           onChange={(e) =>
-                            setPriceDrafts((prev) => ({
-                              ...prev,
-                              [String(r._id)]: e.target.value,
-                            }))
+                            updateRoomDraft(r._id, "basePrice", e.target.value)
                           }
                           className="w-28 rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         />
@@ -578,16 +670,26 @@ export default function RoomsPage() {
                         : "-"}
                     </td>
                     <td className="py-2">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateRoomPrice(r._id)}
-                        disabled={updatingRoomId === String(r._id)}
-                        className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-[10px] hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {updatingRoomId === String(r._id)
-                          ? "Guardando..."
-                          : "Guardar precio"}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveRoom(r._id)}
+                          disabled={updatingRoomId === String(r._id)}
+                          className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-[10px] hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {updatingRoomId === String(r._id)
+                            ? "Guardando..."
+                            : "Guardar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRoom(r)}
+                          disabled={updatingRoomId === String(r._id)}
+                          className="px-3 py-1 rounded-lg bg-rose-500/15 text-rose-300 text-[10px] hover:bg-rose-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -611,7 +713,10 @@ export default function RoomsPage() {
             type="button"
             onClick={() => handleSyncIcal()}
             disabled={
-              !selectedIcalRoomId || savingIcal || syncingSourceId === "all"
+              !selectedIcalRoomId ||
+              savingIcal ||
+              syncingSourceId === "all" ||
+              Boolean(icalLockedMessage)
             }
             className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 text-[11px] hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -619,7 +724,17 @@ export default function RoomsPage() {
           </button>
         </div>
 
-        {rooms.length === 0 ? (
+        {icalLockedMessage ? (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-100">
+            <p>{icalLockedMessage}</p>
+            <Link
+              href="/dashboard/profile#suscripcion"
+              className="mt-2 inline-block font-semibold text-emerald-300 hover:text-emerald-200"
+            >
+              Ver planes →
+            </Link>
+          </div>
+        ) : rooms.length === 0 ? (
           <p className="text-[11px] text-slate-400">
             Creá al menos una habitación para habilitar iCal.
           </p>

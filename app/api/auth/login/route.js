@@ -1,10 +1,11 @@
 // app/api/auth/login/route.js
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import { ensureUserOrganization } from "@/lib/organization";
+import { createSessionToken, setSessionCookie } from "@/lib/auth";
+import { enforceRateLimits, getClientIp, MINUTE_MS } from "@/lib/rate-limit";
 
 export async function POST(req) {
   try {
@@ -27,6 +28,20 @@ export async function POST(req) {
         { status: 500 }
       );
     }
+
+    const limited = await enforceRateLimits([
+      {
+        key: `login:email:${normalizedEmail}`,
+        limit: 10,
+        windowMs: 15 * MINUTE_MS,
+      },
+      {
+        key: `login:ip:${getClientIp(req)}`,
+        limit: 30,
+        windowMs: 15 * MINUTE_MS,
+      },
+    ]);
+    if (limited) return limited;
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
@@ -57,19 +72,6 @@ export async function POST(req) {
 
     const organizationId = await ensureUserOrganization(user);
 
-    const payload = {
-      sub: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      organizationId,
-      role: user.role,
-      plan: user.plan,
-    };
-
-    const token = jwt.sign(payload, jwtSecret, {
-      expiresIn: "7d",
-    });
-
     const safeUser = {
       id: user._id.toString(),
       name: user.name,
@@ -89,16 +91,11 @@ export async function POST(req) {
 
     const res = NextResponse.json({ user: safeUser }, { status: 200 });
 
-    res.cookies.set("hotel_saas_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    setSessionCookie(res, createSessionToken(user, organizationId));
 
     return res;
-  } catch {
+  } catch (error) {
+    console.error("[auth/login]", error);
     return NextResponse.json(
       { error: "Error al iniciar sesion." },
       { status: 500 }

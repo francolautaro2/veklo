@@ -4,16 +4,28 @@ import dbConnect from "@/lib/dbConnect";
 import Room from "@/models/Room";
 import Property from "@/models/Property";
 import Booking from "@/models/Booking";
-import { getUserContextFromRequest } from "@/lib/auth";
+import { getAccessDeniedResponse, getUserContextFromRequest } from "@/lib/auth";
 import {
   createIcalToken,
-  fetchIcalText,
   getIcalProviderLabel,
   isValidIcalUrl,
   normalizeIcalProvider,
-  parseIcalEvents,
   resolveAppUrl,
+  validateIcalSourceUrl,
 } from "@/lib/ical";
+import { syncRoomSources } from "@/lib/ical-sync";
+import { canUseIcalSync, getPlanFeatureMessage } from "@/lib/subscription";
+
+function getPlanRequiredResponse(user) {
+  if (canUseIcalSync(user.plan)) return null;
+  return NextResponse.json(
+    {
+      error: getPlanFeatureMessage("La sincronización iCal"),
+      code: "PLAN_REQUIRED",
+    },
+    { status: 403 }
+  );
+}
 
 function buildPropertyScope(user) {
   if (!user.organizationId) {
@@ -30,12 +42,6 @@ function buildPropertyScope(user) {
 
 function normalizeText(value) {
   return String(value || "").trim();
-}
-
-function getSyncGuestName(source, eventSummary) {
-  const summary = normalizeText(eventSummary);
-  if (summary) return `[iCal] ${summary}`;
-  return `[iCal] Bloqueo ${getIcalProviderLabel(source.provider)}`;
 }
 
 function mapSource(source) {
@@ -83,151 +89,6 @@ async function getRoomContext(roomId, user) {
   return { room, property };
 }
 
-async function syncSource({ room, property, user, source }) {
-  const rawIcal = await fetchIcalText(source.url);
-  const events = parseIcalEvents(rawIcal);
-  const syncedAt = new Date();
-  const organizationId =
-    room.organizationId || property.organizationId || user.organizationId || null;
-
-  const existingBlocks = await Booking.find({
-    roomId: room._id,
-    origin: "ical",
-    "externalSource.sourceId": source.sourceId,
-  });
-  const existingByUid = new Map(
-    existingBlocks.map((booking) => [booking.externalSource?.eventUid || "", booking])
-  );
-  const seenUids = new Set();
-
-  let created = 0;
-  let updated = 0;
-  let cancelled = 0;
-  let skipped = 0;
-
-  for (const event of events) {
-    const eventUid = event.uid;
-    if (!eventUid || seenUids.has(eventUid)) continue;
-    seenUids.add(eventUid);
-
-    const existing = existingByUid.get(eventUid) || null;
-    const conflictFilter = {
-      roomId: room._id,
-      status: { $ne: "cancelled" },
-      checkIn: { $lt: event.checkOut },
-      checkOut: { $gt: event.checkIn },
-    };
-
-    if (existing) {
-      conflictFilter._id = { $ne: existing._id };
-    }
-
-    const conflict = await Booking.findOne(conflictFilter).select("_id");
-    if (conflict) {
-      skipped += 1;
-      continue;
-    }
-
-    const guestName = getSyncGuestName(source, event.summary);
-
-    if (existing) {
-      let hasChanges = false;
-
-      if (existing.status !== "reserved") {
-        existing.status = "reserved";
-        hasChanges = true;
-      }
-
-      if (existing.checkIn.getTime() !== event.checkIn.getTime()) {
-        existing.checkIn = event.checkIn;
-        hasChanges = true;
-      }
-
-      if (existing.checkOut.getTime() !== event.checkOut.getTime()) {
-        existing.checkOut = event.checkOut;
-        hasChanges = true;
-      }
-
-      if (existing.guestName !== guestName) {
-        existing.guestName = guestName;
-        hasChanges = true;
-      }
-
-      existing.externalSource = {
-        provider: source.provider,
-        sourceId: source.sourceId,
-        eventUid: eventUid,
-        calendarName: source.name || "",
-        eventSummary: normalizeText(event.summary),
-        lastImportedAt: syncedAt,
-      };
-
-      await existing.save();
-      if (hasChanges) {
-        updated += 1;
-      }
-      continue;
-    }
-
-    await Booking.create({
-      organizationId,
-      propertyId: room.propertyId,
-      roomId: room._id,
-      ownerId: property.ownerId || user.id,
-      guestName,
-      guestEmail: "",
-      guestPhone: "",
-      checkIn: event.checkIn,
-      checkOut: event.checkOut,
-      status: "reserved",
-      origin: "ical",
-      externalSource: {
-        provider: source.provider,
-        sourceId: source.sourceId,
-        eventUid: eventUid,
-        calendarName: source.name || "",
-        eventSummary: normalizeText(event.summary),
-        lastImportedAt: syncedAt,
-      },
-      preCheckIn: {
-        status: "completed",
-      },
-      deposit: {
-        amount: 0,
-        paymentLink: "",
-        status: "not_required",
-      },
-    });
-
-    created += 1;
-  }
-
-  for (const existing of existingBlocks) {
-    const eventUid = existing.externalSource?.eventUid || "";
-    if (!eventUid || seenUids.has(eventUid)) continue;
-    if (existing.status === "cancelled") continue;
-
-    existing.status = "cancelled";
-    existing.externalSource = {
-      ...existing.externalSource,
-      lastImportedAt: syncedAt,
-    };
-    await existing.save();
-    cancelled += 1;
-  }
-
-  return {
-    sourceId: source.sourceId,
-    provider: source.provider,
-    providerLabel: getIcalProviderLabel(source.provider),
-    totalEvents: events.length,
-    created,
-    updated,
-    cancelled,
-    skipped,
-  };
-}
-
 export async function GET(request, { params }) {
   await dbConnect();
 
@@ -235,6 +96,9 @@ export async function GET(request, { params }) {
   if (!user) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
+
+  const planRequired = getPlanRequiredResponse(user);
+  if (planRequired) return planRequired;
 
   const { id } = await params;
   const context = await getRoomContext(id, user);
@@ -288,6 +152,12 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
+  const planRequired = getPlanRequiredResponse(user);
+  if (planRequired) return planRequired;
+
+  const denied = getAccessDeniedResponse(user);
+  if (denied) return denied;
+
   const { id } = await params;
   const context = await getRoomContext(id, user);
   if (!context) {
@@ -336,6 +206,13 @@ export async function POST(request, { params }) {
         { error: "URL iCal inválida. Debe comenzar con http(s)." },
         { status: 400 }
       );
+    }
+
+    try {
+      await validateIcalSourceUrl(url);
+    } catch (error) {
+      console.error("[ical/rooms/[id]]", error);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     const provider = normalizeIcalProvider(body.provider);
@@ -417,50 +294,18 @@ export async function POST(request, { params }) {
   }
 
   if (action === "sync") {
-    const sourceId = normalizeText(body.sourceId);
-    const targets = sourceId
-      ? room.icalSources.filter((source) => source.sourceId === sourceId)
-      : room.icalSources.filter((source) => source.enabled !== false);
+    const { targets, results } = await syncRoomSources({
+      room,
+      property,
+      sourceId: normalizeText(body.sourceId),
+    });
 
-    if (targets.length === 0) {
+    if (targets === 0) {
       return NextResponse.json(
         { error: "No hay fuentes iCal para sincronizar." },
         { status: 400 }
       );
     }
-
-    const results = [];
-    for (const source of targets) {
-      try {
-        const syncResult = await syncSource({
-          room,
-          property,
-          user,
-          source,
-        });
-
-        source.lastSyncedAt = new Date();
-        source.lastSyncStatus = "ok";
-        source.lastSyncMessage = `Importados ${syncResult.created + syncResult.updated} evento(s), cancelados ${syncResult.cancelled}, omitidos ${syncResult.skipped}.`;
-        results.push({ ok: true, ...syncResult });
-      } catch (error) {
-        source.lastSyncedAt = new Date();
-        source.lastSyncStatus = "error";
-        source.lastSyncMessage =
-          error instanceof Error
-            ? error.message.slice(0, 220)
-            : "Error de sincronización iCal.";
-        results.push({
-          ok: false,
-          sourceId: source.sourceId,
-          provider: source.provider,
-          providerLabel: getIcalProviderLabel(source.provider),
-          error: source.lastSyncMessage,
-        });
-      }
-    }
-
-    await room.save();
 
     const appUrl = resolveAppUrl(new URL(request.url).origin);
     return NextResponse.json(

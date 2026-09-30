@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import { ensureUserOrganization } from "@/lib/organization";
+import { createSessionToken, setSessionCookie } from "@/lib/auth";
 import { getTrialDates, normalizePlan } from "@/lib/subscription";
+import { buildClearedCodeFields } from "@/lib/auth-codes";
 
 const googleClient = new OAuth2Client();
 
@@ -39,16 +40,6 @@ function buildSafeUser(user, organizationId) {
     subscriptionLastWebhookAt: user.subscriptionLastWebhookAt || null,
     trialEndsAt: user.trialEndsAt || null,
   };
-}
-
-function setSessionCookie(response, token) {
-  response.cookies.set("hotel_saas_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
 }
 
 export async function POST(request) {
@@ -130,27 +121,36 @@ export async function POST(request) {
         trialEndsAt,
       });
       isNewUser = true;
-    } else if (!user.name && nameFromGoogle) {
-      user.name = nameFromGoogle;
-      user.emailVerified = true;
-      await user.save();
-    } else if (!user.emailVerified) {
-      user.emailVerified = true;
-      await user.save();
+    } else {
+      let mustSave = false;
+
+      if (!user.name && nameFromGoogle) {
+        user.name = nameFromGoogle;
+        mustSave = true;
+      }
+
+      if (!user.emailVerified) {
+        // La cuenta se creó con este email pero nunca se verificó: pudo haberla
+        // registrado otra persona. Google acaba de probar quién es el dueño, así
+        // que invalidamos la contraseña que se eligió en ese registro.
+        user.set({
+          emailVerified: true,
+          passwordHash: await bcrypt.hash(
+            crypto.randomBytes(32).toString("hex"),
+            10
+          ),
+          ...buildClearedCodeFields("emailVerification"),
+        });
+        mustSave = true;
+      }
+
+      if (mustSave) {
+        await user.save();
+      }
     }
 
     const organizationId = await ensureUserOrganization(user);
 
-    const appPayload = {
-      sub: user._id.toString(),
-      email: user.email,
-      name: user.name,
-      organizationId,
-      role: user.role || "owner",
-      plan: user.plan,
-    };
-
-    const token = jwt.sign(appPayload, jwtSecret, { expiresIn: "7d" });
     const response = NextResponse.json(
       {
         user: buildSafeUser(user, organizationId),
@@ -159,7 +159,7 @@ export async function POST(request) {
       { status: 200 }
     );
 
-    setSessionCookie(response, token);
+    setSessionCookie(response, createSessionToken(user, organizationId));
     return response;
   } catch (error) {
     const isCredentialError =

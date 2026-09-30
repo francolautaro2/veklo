@@ -9,6 +9,10 @@ const propertyTypes = [
   { value: "casa", label: "Casa" },
 ];
 
+function getPropertyTypeLabel(value) {
+  return propertyTypes.find((type) => type.value === value)?.label || value;
+}
+
 const templateFieldTypes = [
   { value: "boolean", label: "Sí / No" },
   { value: "text", label: "Texto corto" },
@@ -225,6 +229,101 @@ export default function PropertiesPage() {
   const [templateSavingId, setTemplateSavingId] = useState("");
   const [templateError, setTemplateError] = useState("");
   const [templateNotice, setTemplateNotice] = useState("");
+  const [listNotice, setListNotice] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [editDraft, setEditDraft] = useState({ name: "", type: "hotel", address: "" });
+  const [rowSavingId, setRowSavingId] = useState("");
+
+  function startEditing(property) {
+    setError("");
+    setListNotice("");
+    setEditingId(getPropertyId(property));
+    setEditDraft({
+      name: property.name || "",
+      type: property.type || "hotel",
+      address: property.address || "",
+    });
+  }
+
+  async function handleUpdateProperty(propertyId) {
+    setError("");
+    setListNotice("");
+
+    if (!editDraft.name.trim()) {
+      setError("El nombre de la propiedad no puede estar vacío.");
+      return;
+    }
+
+    setRowSavingId(propertyId);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editDraft),
+      });
+
+      if (res.status === 401) {
+        router.push("/auth/login");
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "No se pudo actualizar la propiedad.");
+        setRowSavingId("");
+        return;
+      }
+
+      setProperties((prev) =>
+        prev.map((item) =>
+          getPropertyId(item) === propertyId ? { ...item, ...data.property } : item
+        )
+      );
+      setEditingId("");
+      setRowSavingId("");
+      setListNotice("Propiedad actualizada.");
+    } catch (err) {
+      console.error(err);
+      setError("Error inesperado al actualizar la propiedad.");
+      setRowSavingId("");
+    }
+  }
+
+  async function handleDeleteProperty(property) {
+    const propertyId = getPropertyId(property);
+    setError("");
+    setListNotice("");
+
+    const confirmed = window.confirm(
+      `¿Eliminar "${property.name}"? Se borran también sus habitaciones y sus reservas pasadas y canceladas. Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setRowSavingId(propertyId);
+    try {
+      const res = await fetch(`/api/properties/${propertyId}`, { method: "DELETE" });
+
+      if (res.status === 401) {
+        router.push("/auth/login");
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "No se pudo eliminar la propiedad.");
+        setRowSavingId("");
+        return;
+      }
+
+      setProperties((prev) => prev.filter((item) => getPropertyId(item) !== propertyId));
+      setRowSavingId("");
+      setListNotice("Propiedad eliminada.");
+    } catch (err) {
+      console.error(err);
+      setError("Error inesperado al eliminar la propiedad.");
+      setRowSavingId("");
+    }
+  }
 
   async function fetchProperties() {
     setLoadingList(true);
@@ -452,6 +551,12 @@ export default function PropertiesPage() {
           )}
         </div>
 
+        {listNotice && (
+          <div className="mb-3 rounded-lg border border-emerald-800 bg-emerald-900/20 px-3 py-2 text-[11px] text-emerald-200">
+            {listNotice}
+          </div>
+        )}
+
         {loadingList ? (
           <div className="text-[11px] text-slate-400">
             Cargando propiedades...
@@ -469,30 +574,127 @@ export default function PropertiesPage() {
                   <th className="text-left py-2">Tipo</th>
                   <th className="text-left py-2">Dirección</th>
                   <th className="text-left py-2">Creado</th>
+                  <th className="text-left py-2">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {properties.map((p) => (
-                  <tr
-                    key={p._id}
-                    className="border-b border-slate-900/60 last:border-none"
-                  >
-                    <td className="py-2">{p.name}</td>
-                    <td className="py-2 capitalize">{p.type}</td>
-                    <td className="py-2">
-                      {p.address || (
-                        <span className="text-slate-500">
-                          Sin dirección
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 text-slate-400">
-                      {p.createdAt
-                        ? new Date(p.createdAt).toLocaleDateString("es-AR")
-                        : "-"}
-                    </td>
-                  </tr>
-                ))}
+                {properties.map((p) => {
+                  const propertyId = getPropertyId(p);
+                  const isEditing = editingId === propertyId;
+                  const isSaving = rowSavingId === propertyId;
+
+                  return (
+                    <tr
+                      key={propertyId}
+                      className="border-b border-slate-900/60 last:border-none"
+                    >
+                      <td className="py-2 pr-2">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            maxLength={120}
+                            aria-label="Nombre"
+                            value={editDraft.name}
+                            onChange={(e) =>
+                              setEditDraft((prev) => ({ ...prev, name: e.target.value }))
+                            }
+                            className="w-40 rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          />
+                        ) : (
+                          p.name
+                        )}
+                      </td>
+                      <td className="py-2 pr-2">
+                        {isEditing ? (
+                          <select
+                            aria-label="Tipo"
+                            value={editDraft.type}
+                            onChange={(e) =>
+                              setEditDraft((prev) => ({ ...prev, type: e.target.value }))
+                            }
+                            className="rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          >
+                            {propertyTypes.map((type) => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          getPropertyTypeLabel(p.type)
+                        )}
+                      </td>
+                      <td className="py-2 pr-2">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            maxLength={200}
+                            aria-label="Dirección"
+                            value={editDraft.address}
+                            onChange={(e) =>
+                              setEditDraft((prev) => ({ ...prev, address: e.target.value }))
+                            }
+                            className="w-48 rounded-lg bg-slate-950 border border-slate-700 px-2 py-1 text-[11px] outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          />
+                        ) : (
+                          p.address || (
+                            <span className="text-slate-500">
+                              Sin dirección
+                            </span>
+                          )
+                        )}
+                      </td>
+                      <td className="py-2 text-slate-400">
+                        {p.createdAt
+                          ? new Date(p.createdAt).toLocaleDateString("es-AR")
+                          : "-"}
+                      </td>
+                      <td className="py-2">
+                        <div className="flex gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateProperty(propertyId)}
+                                disabled={isSaving}
+                                className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-[10px] hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {isSaving ? "Guardando..." : "Guardar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId("")}
+                                disabled={isSaving}
+                                className="px-3 py-1 rounded-lg border border-slate-700 text-slate-300 text-[10px] hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEditing(p)}
+                                disabled={isSaving}
+                                className="px-3 py-1 rounded-lg border border-slate-700 text-slate-300 text-[10px] hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProperty(p)}
+                                disabled={isSaving}
+                                className="px-3 py-1 rounded-lg bg-rose-500/15 text-rose-300 text-[10px] hover:bg-rose-500/25 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {isSaving ? "Eliminando..." : "Eliminar"}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

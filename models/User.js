@@ -37,6 +37,11 @@ const UserSchema = new mongoose.Schema(
       default: null,
       select: false,
     },
+    emailVerificationAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
     phone: {
       type: String,
       trim: true,
@@ -48,10 +53,16 @@ const UserSchema = new mongoose.Schema(
       default: "",
     },
     passwordHash: { type: String, required: true },
+    // Se incrementa para invalidar todas las sesiones abiertas (ver lib/auth.js).
+    sessionVersion: {
+      type: Number,
+      default: 0,
+    },
     plan: {
       type: String,
+      // "inicio" es un plan viejo: se conserva para no romper cuentas existentes.
       enum: ["inicio", "pro", "plus"],
-      default: "inicio",
+      default: "pro",
     },
     subscriptionStatus: {
       type: String,
@@ -92,6 +103,11 @@ const UserSchema = new mongoose.Schema(
     passwordResetExpiresAt: {
       type: Date,
       default: null,
+      select: false,
+    },
+    passwordResetAttempts: {
+      type: Number,
+      default: 0,
       select: false,
     },
   },

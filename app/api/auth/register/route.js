@@ -5,12 +5,9 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import { getTrialDates, normalizePlan } from "@/lib/subscription";
 import { ensureUserOrganization } from "@/lib/organization";
-import {
-  createEmailCode,
-  getCodeExpiration,
-  hashEmailCode,
-} from "@/lib/auth-codes";
+import { buildNewCodeFields, createEmailCode } from "@/lib/auth-codes";
 import { sendEmailVerificationCode } from "@/lib/email";
+import { enforceRateLimits, getClientIp, MINUTE_MS } from "@/lib/rate-limit";
 
 export async function POST(req) {
   try {
@@ -35,8 +32,17 @@ export async function POST(req) {
       );
     }
 
+    const limited = await enforceRateLimits([
+      {
+        key: `register:ip:${getClientIp(req)}`,
+        limit: 10,
+        windowMs: 60 * MINUTE_MS,
+      },
+    ]);
+    if (limited) return limited;
+
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) {
+    if (existing?.emailVerified) {
       return NextResponse.json(
         { error: "Ya existe un usuario con ese email." },
         { status: 409 }
@@ -46,20 +52,28 @@ export async function POST(req) {
     const passwordHash = await bcrypt.hash(password, 10);
     const { trialStartsAt, trialEndsAt } = getTrialDates();
     const verificationCode = createEmailCode();
-
-    const user = await User.create({
+    const userFields = {
       name: normalizedName,
       email: normalizedEmail,
       emailVerified: false,
-      emailVerificationCodeHash: hashEmailCode(verificationCode),
-      emailVerificationExpiresAt: getCodeExpiration(),
+      ...buildNewCodeFields("emailVerification", verificationCode),
       passwordHash,
       role: "owner",
       plan: normalizedPlan,
       subscriptionStatus: "trialing",
       trialStartsAt,
       trialEndsAt,
-    });
+    };
+
+    // Una cuenta nunca verificada no "reserva" el email: quien lo verifique
+    // se queda con la cuenta (y con la contraseña que eligió).
+    let user;
+    if (existing) {
+      existing.set(userFields);
+      user = await existing.save();
+    } else {
+      user = await User.create(userFields);
+    }
 
     const organizationId = await ensureUserOrganization(user);
     await sendEmailVerificationCode({ user, code: verificationCode });
@@ -90,7 +104,8 @@ export async function POST(req) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    console.error("[auth/register]", error);
     return NextResponse.json(
       { error: "Error al registrar usuario." },
       { status: 500 }

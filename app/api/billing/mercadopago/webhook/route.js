@@ -119,6 +119,7 @@ export async function POST(request) {
     const result = await processPreapprovalUpdate(preapprovalId);
     return NextResponse.json({ received: true, ...result }, { status: 200 });
   } catch (error) {
+    console.error("[billing/mercadopago/webhook]", error);
     return NextResponse.json(
       {
         error:
@@ -147,6 +148,7 @@ export async function GET(request) {
     const result = await processPreapprovalUpdate(preapprovalId);
     return NextResponse.json({ received: true, ...result }, { status: 200 });
   } catch (error) {
+    console.error("[billing/mercadopago/webhook]", error);
     return NextResponse.json(
       {
         error:

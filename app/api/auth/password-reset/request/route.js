@@ -2,11 +2,8 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import { sendPasswordResetCodeEmail } from "@/lib/email";
-import {
-  createEmailCode,
-  getCodeExpiration,
-  hashEmailCode,
-} from "@/lib/auth-codes";
+import { buildNewCodeFields, createEmailCode } from "@/lib/auth-codes";
+import { enforceRateLimits, getClientIp, MINUTE_MS } from "@/lib/rate-limit";
 
 export async function POST(request) {
   try {
@@ -22,17 +19,28 @@ export async function POST(request) {
       );
     }
 
-    const user = await User.findOne({ email: normalizedEmail }).select(
-      "+passwordResetTokenHash +passwordResetExpiresAt"
-    );
+    const limited = await enforceRateLimits([
+      {
+        key: `password-reset-request:email:${normalizedEmail}`,
+        limit: 3,
+        windowMs: 15 * MINUTE_MS,
+      },
+      {
+        key: `password-reset-request:ip:${getClientIp(request)}`,
+        limit: 10,
+        windowMs: 15 * MINUTE_MS,
+      },
+    ]);
+    if (limited) return limited;
+
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (user) {
       const code = createEmailCode();
-
-      user.passwordResetTokenHash = hashEmailCode(code);
-      user.passwordResetExpiresAt = getCodeExpiration();
-      await user.save();
-
+      await User.updateOne(
+        { _id: user._id },
+        { $set: buildNewCodeFields("passwordReset", code) }
+      );
       await sendPasswordResetCodeEmail({ user, code });
     }
 

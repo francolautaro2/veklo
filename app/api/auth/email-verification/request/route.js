@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import {
-  createEmailCode,
-  getCodeExpiration,
-  hashEmailCode,
-} from "@/lib/auth-codes";
+import { buildNewCodeFields, createEmailCode } from "@/lib/auth-codes";
 import { sendEmailVerificationCode } from "@/lib/email";
+import { enforceRateLimits, getClientIp, MINUTE_MS } from "@/lib/rate-limit";
 
 export async function POST(request) {
   try {
@@ -22,15 +19,28 @@ export async function POST(request) {
       );
     }
 
-    const user = await User.findOne({ email: normalizedEmail }).select(
-      "+emailVerificationCodeHash +emailVerificationExpiresAt"
-    );
+    const limited = await enforceRateLimits([
+      {
+        key: `email-verify-request:email:${normalizedEmail}`,
+        limit: 3,
+        windowMs: 15 * MINUTE_MS,
+      },
+      {
+        key: `email-verify-request:ip:${getClientIp(request)}`,
+        limit: 10,
+        windowMs: 15 * MINUTE_MS,
+      },
+    ]);
+    if (limited) return limited;
+
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (user && !user.emailVerified) {
       const code = createEmailCode();
-      user.emailVerificationCodeHash = hashEmailCode(code);
-      user.emailVerificationExpiresAt = getCodeExpiration();
-      await user.save();
+      await User.updateOne(
+        { _id: user._id },
+        { $set: buildNewCodeFields("emailVerification", code) }
+      );
       await sendEmailVerificationCode({ user, code });
     }
 
@@ -38,7 +48,8 @@ export async function POST(request) {
       message:
         "Si la cuenta existe y todavía no está verificada, te enviamos un código.",
     });
-  } catch {
+  } catch (error) {
+    console.error("[auth/email-verification/request]", error);
     return NextResponse.json(
       { error: "No se pudo enviar el código de verificación." },
       { status: 500 }

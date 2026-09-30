@@ -37,7 +37,13 @@ const themeInitializerScript = `
 export default function RootLayout({ children }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className="bg-slate-950 text-slate-100 antialiased">
+      {/* Algunas extensiones del navegador agregan atributos al <body> antes de
+          que React hidrate (por ejemplo ap-style=""). suppressHydrationWarning
+          ignora esas diferencias solo en este elemento, no en sus hijos. */}
+      <body
+        className="bg-slate-950 text-slate-100 antialiased"
+        suppressHydrationWarning
+      >
         <script dangerouslySetInnerHTML={{ __html: themeInitializerScript }} />
         {children}
       </body>

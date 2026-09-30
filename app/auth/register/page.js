@@ -4,17 +4,14 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import GoogleAuthButton from "@/app/auth/_components/google-auth-button";
+import {
+  DEFAULT_PLAN,
+  PLAN_LIMITS,
+  formatPlanPrice,
+  normalizePlan,
+} from "@/lib/subscription";
 
-const PLAN_OPTIONS = [
-  { value: "inicio", label: "Inicio (1 propiedad / 25 habitaciones)" },
-  { value: "pro", label: "Pro (hasta 5 propiedades)" },
-  { value: "plus", label: "Plus (propiedades ilimitadas)" },
-];
-
-function normalizePlan(rawPlan) {
-  const value = String(rawPlan || "").trim().toLowerCase();
-  return PLAN_OPTIONS.some((plan) => plan.value === value) ? value : "inicio";
-}
+const PLAN_OPTIONS = Object.values(PLAN_LIMITS);
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,7 +20,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [plan, setPlan] = useState(() => {
-    if (typeof window === "undefined") return "inicio";
+    if (typeof window === "undefined") return DEFAULT_PLAN;
     const params = new URLSearchParams(window.location.search);
     return normalizePlan(params.get("plan"));
   });
@@ -148,8 +145,9 @@ export default function RegisterPage() {
             onChange={(e) => setPlan(e.target.value)}
           >
             {PLAN_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+              <option key={option.key} value={option.key}>
+                {option.label} · {formatPlanPrice(option.key)} / mes ·{" "}
+                {option.description}
               </option>
             ))}
           </select>
@@ -162,6 +160,18 @@ export default function RegisterPage() {
         >
           {loading ? "Creando cuenta..." : "Crear cuenta"}
         </button>
+
+        <p className="text-[11px] text-slate-500 text-center">
+          Al crear tu cuenta aceptás los{" "}
+          <Link href="/terminos" className="text-emerald-400 hover:text-emerald-300">
+            Términos y condiciones
+          </Link>{" "}
+          y la{" "}
+          <Link href="/privacidad" className="text-emerald-400 hover:text-emerald-300">
+            Política de privacidad
+          </Link>
+          .
+        </p>
       </form>
 
       <div className="mt-4 text-xs text-slate-400 flex items-center justify-between">

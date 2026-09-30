@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import { hashEmailCode } from "@/lib/auth-codes";
+import { buildClearedCodeFields, consumeCodeAttempt } from "@/lib/auth-codes";
+import { enforceRateLimits, getClientIp, MINUTE_MS } from "@/lib/rate-limit";
 
 export async function POST(request) {
   try {
@@ -18,43 +19,49 @@ export async function POST(request) {
       );
     }
 
-    const user = await User.findOne({ email: normalizedEmail }).select(
-      "+emailVerificationCodeHash +emailVerificationExpiresAt"
+    const limited = await enforceRateLimits([
+      {
+        key: `email-verify:ip:${getClientIp(request)}`,
+        limit: 30,
+        windowMs: 15 * MINUTE_MS,
+      },
+    ]);
+    if (limited) return limited;
+
+    const existing = await User.findOne({ email: normalizedEmail }).select(
+      "emailVerified"
     );
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Código inválido o vencido." },
-        { status: 400 }
-      );
-    }
-
-    if (user.emailVerified) {
+    if (existing?.emailVerified) {
       return NextResponse.json({ message: "Email ya verificado." });
     }
 
-    const codeMatches =
-      user.emailVerificationCodeHash === hashEmailCode(normalizedCode);
-    const notExpired =
-      user.emailVerificationExpiresAt &&
-      user.emailVerificationExpiresAt > new Date();
+    const user = await consumeCodeAttempt({
+      email: normalizedEmail,
+      code: normalizedCode,
+      purpose: "emailVerification",
+    });
 
-    if (!codeMatches || !notExpired) {
+    if (!user) {
       return NextResponse.json(
-        { error: "Código inválido o vencido." },
+        {
+          error:
+            "Código inválido o vencido. Si fallaste varias veces, pedí un código nuevo.",
+        },
         { status: 400 }
       );
     }
 
-    user.emailVerified = true;
-    user.emailVerificationCodeHash = "";
-    user.emailVerificationExpiresAt = null;
+    user.set({
+      emailVerified: true,
+      ...buildClearedCodeFields("emailVerification"),
+    });
     await user.save();
 
     return NextResponse.json({
       message: "Email verificado. Ya podés iniciar sesión.",
     });
-  } catch {
+  } catch (error) {
+    console.error("[auth/email-verification/confirm]", error);
     return NextResponse.json(
       { error: "No se pudo verificar el email." },
       { status: 500 }

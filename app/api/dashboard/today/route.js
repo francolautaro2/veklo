@@ -5,28 +5,12 @@ import { getUserContextFromRequest } from "@/lib/auth";
 import Booking from "@/models/Booking";
 import Property from "@/models/Property";
 import Room from "@/models/Room";
+import { addDays, getAppTimeZone, todayDateOnly } from "@/lib/date-only";
 
+// [start, end): el día de hoy en la zona horaria del negocio.
 function getTodayRange() {
-  const now = new Date();
-  const start = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-  const end = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
-  return { start, end };
+  const start = todayDateOnly(getAppTimeZone());
+  return { start, end: addDays(start, 1) };
 }
 
 function buildPropertyScope(user) {
@@ -91,14 +75,14 @@ export async function GET(request) {
   const checkInsRaw = await Booking.find({
     ...baseFilter,
     status: { $ne: "cancelled" },
-    checkIn: { $gte: start, $lte: end },
+    checkIn: { $gte: start, $lt: end },
   }).lean();
 
   // Check-outs de hoy
   const checkOutsRaw = await Booking.find({
     ...baseFilter,
     status: { $ne: "cancelled" },
-    checkOut: { $gte: start, $lte: end },
+    checkOut: { $gte: start, $lt: end },
   }).lean();
 
   const allBookings = [...checkInsRaw, ...checkOutsRaw];

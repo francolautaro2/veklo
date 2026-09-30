@@ -2,9 +2,13 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Booking from "@/models/Booking";
-import User from "@/models/User";
-import { getUserContextFromRequest } from "@/lib/auth";
-import { getAccessDeniedMessage, hasAccountAccess } from "@/lib/subscription";
+import { getAccessDeniedResponse, getUserContextFromRequest } from "@/lib/auth";
+import {
+  getAppTimeZone,
+  parseDateOnly,
+  toDateOnly,
+  todayDateOnly,
+} from "@/lib/date-only";
 
 const ALLOWED_STATUS = new Set([
   "reserved",
@@ -21,12 +25,6 @@ const ALLOWED_PAYMENT_METHOD = new Set([
   "otro",
 ]);
 
-function parseLocalDate(value) {
-  if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-}
 
 function isValidHttpUrl(value) {
   try {
@@ -52,11 +50,10 @@ function parseMoney(value) {
   return Math.round(num * 100) / 100;
 }
 
-function parseDateTime(value) {
+// Acepta "YYYY-MM-DD" o un ISO completo y lo guarda como fecha de calendario.
+function parseCalendarDate(value) {
   if (!value) return null;
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return null;
-  return date;
+  return parseDateOnly(value) || toDateOnly(value);
 }
 
 function canAccessBooking(booking, user) {
@@ -87,25 +84,9 @@ async function getWritableBooking(request, params) {
     };
   }
 
-  const account = await User.findById(user.id).select(
-    "subscriptionStatus trialEndsAt"
-  );
-  if (!account) {
-    return {
-      response: NextResponse.json(
-        { error: "Usuario no encontrado." },
-        { status: 404 }
-      ),
-    };
-  }
-
-  if (!hasAccountAccess(account)) {
-    return {
-      response: NextResponse.json(
-        { error: getAccessDeniedMessage() },
-        { status: 402 }
-      ),
-    };
+  const denied = getAccessDeniedResponse(user);
+  if (denied) {
+    return { response: denied };
   }
 
   const { id } = await params;
@@ -146,8 +127,8 @@ async function getWritableBooking(request, params) {
 
 export async function PUT(request, { params }) {
   const body = await request.json();
-  const updateCheckIn = body.checkIn ? parseLocalDate(body.checkIn) : null;
-  const updateCheckOut = body.checkOut ? parseLocalDate(body.checkOut) : null;
+  const updateCheckIn = body.checkIn ? parseDateOnly(body.checkIn) : null;
+  const updateCheckOut = body.checkOut ? parseDateOnly(body.checkOut) : null;
   const updateStatus = body.status || null;
   const updateDepositStatus = body.depositStatus || null;
   const hasDepositAmount = Object.prototype.hasOwnProperty.call(
@@ -264,7 +245,7 @@ export async function PUT(request, { params }) {
         booking.monto_total = booking.monto_total || amount;
         booking.monto_pagado = Math.max(booking.monto_pagado || 0, amount);
         booking.estado_pago = "pagado";
-        booking.fecha_pago = booking.deposit.paidAt;
+        booking.fecha_pago = todayDateOnly(getAppTimeZone());
         booking.metodo_pago = booking.metodo_pago || "otro";
       }
     } else if (!hasDepositConfig) {
@@ -278,7 +259,8 @@ export async function PUT(request, { params }) {
     await booking.save();
 
     return NextResponse.json({ booking }, { status: 200 });
-  } catch {
+  } catch (error) {
+    console.error("[bookings/[id]]", error);
     return NextResponse.json(
       { error: "Error al actualizar reserva." },
       { status: 400 }
@@ -303,8 +285,8 @@ export async function PATCH(request, { params }) {
   const nextTotal = hasTotal ? parseMoney(body.monto_total) : null;
   const nextPaid = hasPaid ? parseMoney(body.monto_pagado) : null;
   const nextStatus = hasStatus ? body.estado_pago : null;
-  const nextPaidAt = hasPaidAt ? parseDateTime(body.fecha_pago) : null;
-  const nextDueAt = hasDueAt ? parseDateTime(body.fecha_vencimiento_pago) : null;
+  const nextPaidAt = hasPaidAt ? parseCalendarDate(body.fecha_pago) : null;
+  const nextDueAt = hasDueAt ? parseCalendarDate(body.fecha_vencimiento_pago) : null;
   const nextMethod = hasMethod ? body.metodo_pago : null;
 
   if (hasTotal && nextTotal === null) {
@@ -359,7 +341,7 @@ export async function PATCH(request, { params }) {
     }
 
     if (booking.estado_pago === "pagado" && !booking.fecha_pago) {
-      booking.fecha_pago = new Date();
+      booking.fecha_pago = todayDateOnly(getAppTimeZone());
     }
 
     if (booking.deposit) {
@@ -377,7 +359,8 @@ export async function PATCH(request, { params }) {
     await booking.save();
 
     return NextResponse.json({ booking }, { status: 200 });
-  } catch {
+  } catch (error) {
+    console.error("[bookings/[id]]", error);
     return NextResponse.json(
       { error: "Error al actualizar pago." },
       { status: 400 }

@@ -3,27 +3,23 @@ import dbConnect from "@/lib/dbConnect";
 import { getUserContextFromRequest } from "@/lib/auth";
 import Property from "@/models/Property";
 import Booking from "@/models/Booking";
+import {
+  addDays,
+  formatDateOnly,
+  getAppTimeZone,
+  toDateKey,
+  todayDateOnly,
+} from "@/lib/date-only";
 
 function parseDays(value) {
   const parsed = Number(value);
   return [7, 30, 90].includes(parsed) ? parsed : 30;
 }
 
+// [start, end): los últimos `days` días incluyendo hoy (zona horaria del negocio).
 function getRangeDays(days = 30) {
-  const today = new Date();
-  const end = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
-
-  const start = new Date(end);
-  start.setDate(start.getDate() - (days - 1));
-  start.setHours(0, 0, 0, 0);
+  const end = addDays(todayDateOnly(getAppTimeZone()), 1);
+  const start = addDays(end, -days);
 
   return { start, end };
 }
@@ -97,10 +93,10 @@ export async function GET(request) {
     $or: [
       {
         estado_pago: { $in: ["pagado", "parcial"] },
-        fecha_pago: { $gte: start, $lte: end },
+        fecha_pago: { $gte: start, $lt: end },
       },
       {
-        checkIn: { $gte: start, $lte: end },
+        checkIn: { $gte: start, $lt: end },
         estado_pago: { $ne: "pagado" },
       },
     ],
@@ -110,28 +106,22 @@ export async function GET(request) {
 
   const data = [];
   for (let i = 0; i < days; i += 1) {
-    const dayStart = new Date(start);
-    dayStart.setDate(start.getDate() + i);
-    dayStart.setHours(0, 0, 0, 0);
-
-    const dayEnd = new Date(dayStart);
-    dayEnd.setHours(23, 59, 59, 999);
+    const dayStart = addDays(start, i);
+    const dayKey = toDateKey(dayStart);
 
     const revenue = bookings.reduce((sum, booking) => {
-      const paidAt = new Date(booking.fecha_pago);
-      if (paidAt < dayStart || paidAt > dayEnd) return sum;
+      if (toDateKey(booking.fecha_pago) !== dayKey) return sum;
       return sum + (Number(booking.monto_pagado) || 0);
     }, 0);
     const pending = bookings.reduce((sum, booking) => {
-      const checkIn = new Date(booking.checkIn);
-      if (checkIn < dayStart || checkIn > dayEnd) return sum;
+      if (toDateKey(booking.checkIn) !== dayKey) return sum;
       const total = Number(booking.monto_total) || 0;
       const paid = Number(booking.monto_pagado) || 0;
       return sum + Math.max(total - paid, 0);
     }, 0);
 
     data.push({
-      date: dayStart.toLocaleDateString("es-AR", {
+      date: formatDateOnly(dayStart, {
         day: "2-digit",
         month: "2-digit",
       }),

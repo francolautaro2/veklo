@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatDateOnly, toDateOnly, todayDateOnly } from "@/lib/date-only";
 
 const DAY_WIDTH = 88;
 const ROOM_LABEL_WIDTH = 190;
@@ -13,16 +14,15 @@ const STATUS_STYLES = {
   checkedOut: "border-slate-500/70 bg-slate-700/70 text-slate-200",
 };
 
+// Días del mes como fechas de calendario (medianoche UTC).
 function getMonthDays(date = new Date()) {
-  const start = new Date(date.getFullYear(), date.getMonth(), 1);
-  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const days = [];
 
-  for (let day = 1; day <= end.getDate(); day += 1) {
-    const current = new Date(start);
-    current.setDate(day);
-    current.setHours(0, 0, 0, 0);
-    days.push(current);
+  for (let day = 1; day <= lastDay; day += 1) {
+    days.push(new Date(Date.UTC(year, month, day)));
   }
 
   return days;
@@ -36,17 +36,11 @@ function formatMonth(value) {
 }
 
 function formatDate(value) {
-  return new Date(value).toLocaleDateString("es-AR", {
+  return formatDateOnly(value, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-}
-
-function startOfDay(value) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
 }
 
 function getPaymentStatus(booking) {
@@ -57,10 +51,10 @@ function getPaymentStatus(booking) {
 }
 
 function getBookingVisualState(booking) {
-  const today = startOfDay(new Date());
-  const checkIn = startOfDay(booking.checkIn);
+  const today = todayDateOnly();
+  const checkIn = toDateOnly(booking.checkIn);
   const dueDate = booking.fecha_vencimiento_pago
-    ? startOfDay(booking.fecha_vencimiento_pago)
+    ? toDateOnly(booking.fecha_vencimiento_pago)
     : null;
   const paymentStatus = getPaymentStatus(booking);
 
@@ -74,8 +68,8 @@ function getBookingVisualState(booking) {
 function getBookingPosition(booking, days) {
   const monthStart = days[0];
   const monthEnd = days[days.length - 1];
-  const checkIn = startOfDay(booking.checkIn);
-  const checkOut = startOfDay(booking.checkOut);
+  const checkIn = toDateOnly(booking.checkIn);
+  const checkOut = toDateOnly(booking.checkOut);
   const visibleStart = checkIn < monthStart ? monthStart : checkIn;
   const visibleEnd = checkOut > monthEnd ? monthEnd : checkOut;
   const startIndex = Math.max(
@@ -245,8 +239,8 @@ export default function CalendarPage() {
   const monthEnd = days[days.length - 1];
   const visibleBookings = bookings.filter((booking) => {
     if (booking.status === "cancelled") return false;
-    const checkIn = startOfDay(booking.checkIn);
-    const checkOut = startOfDay(booking.checkOut);
+    const checkIn = toDateOnly(booking.checkIn);
+    const checkOut = toDateOnly(booking.checkOut);
     return checkIn <= monthEnd && checkOut >= monthStart;
   });
 
@@ -311,10 +305,10 @@ export default function CalendarPage() {
                     style={{ width: DAY_WIDTH }}
                   >
                     <p className="text-[10px] uppercase text-slate-500">
-                      {day.toLocaleDateString("es-AR", { weekday: "short" })}
+                      {formatDateOnly(day, { weekday: "short" })}
                     </p>
                     <p className="text-xs font-semibold text-slate-200">
-                      {day.getDate()}
+                      {day.getUTCDate()}
                     </p>
                   </div>
                 ))}

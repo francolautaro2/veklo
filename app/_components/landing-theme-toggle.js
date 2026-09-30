@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Icon from "@/app/_components/icon";
 import styles from "@/app/landing.module.css";
 
 const THEME_STORAGE_KEY = "veklo-theme";
@@ -42,7 +43,9 @@ export default function LandingThemeToggle() {
       title={theme === "dark" ? "Tema claro" : "Tema oscuro"}
       suppressHydrationWarning
     >
-      <span aria-hidden>{theme === "dark" ? "☀" : "☾"}</span>
+      {/* Los dos íconos se renderizan siempre; el CSS muestra el del tema activo. */}
+      <Icon name="sun" size={17} className={styles.iconSun} />
+      <Icon name="moon" size={17} className={styles.iconMoon} />
     </button>
   );
 }

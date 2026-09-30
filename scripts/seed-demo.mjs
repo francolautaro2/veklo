@@ -27,18 +27,16 @@ function loadEnvLocal() {
   }
 }
 
+// Fechas de calendario como medianoche UTC (igual que lib/date-only.js).
 function addDays(days) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  date.setHours(14, 0, 0, 0);
-  return date;
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + days)
+  );
 }
 
 function checkoutFrom(checkIn, nights) {
-  const date = new Date(checkIn);
-  date.setDate(date.getDate() + nights);
-  date.setHours(10, 0, 0, 0);
-  return date;
+  return new Date(checkIn.getTime() + nights * 24 * 60 * 60 * 1000);
 }
 
 function randomToken() {

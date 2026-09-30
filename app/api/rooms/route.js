@@ -3,13 +3,10 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Room from "@/models/Room";
 import Property from "@/models/Property";
-import User from "@/models/User";
-import { getUserContextFromRequest } from "@/lib/auth";
+import { getAccessDeniedResponse, getUserContextFromRequest } from "@/lib/auth";
 import {
-  getAccessDeniedMessage,
   getPlanConfig,
   getRoomLimitMessage,
-  hasAccountAccess,
 } from "@/lib/subscription";
 
 function buildPropertyScope(user) {
@@ -78,19 +75,8 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  const account = await User.findById(user.id).select(
-    "plan subscriptionStatus trialEndsAt"
-  );
-  if (!account) {
-    return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
-  }
-
-  if (!hasAccountAccess(account)) {
-    return NextResponse.json(
-      { error: getAccessDeniedMessage() },
-      { status: 402 }
-    );
-  }
+  const denied = getAccessDeniedResponse(user);
+  if (denied) return denied;
 
   const { propertyId, name, capacity, basePrice } = await request.json();
 
@@ -114,12 +100,12 @@ export async function POST(request) {
     );
   }
 
-  const planConfig = getPlanConfig(account.plan);
+  const planConfig = getPlanConfig(user.plan);
   if (planConfig.maxRoomsPerProperty != null) {
     const roomCount = await Room.countDocuments({ propertyId });
     if (roomCount >= planConfig.maxRoomsPerProperty) {
       return NextResponse.json(
-        { error: getRoomLimitMessage(account.plan) },
+        { error: getRoomLimitMessage(user.plan) },
         { status: 403 }
       );
     }
@@ -141,7 +127,8 @@ export async function POST(request) {
     });
 
     return NextResponse.json({ room }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("[rooms]", error);
     return NextResponse.json({ error: "Error al crear habitación." }, { status: 400 });
   }
 }

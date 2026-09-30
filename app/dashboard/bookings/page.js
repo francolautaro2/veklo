@@ -3,6 +3,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  formatDateOnly,
+  isSameDateOnly,
+  parseDateOnly,
+  toDateKey,
+  todayDateOnly,
+} from "@/lib/date-only";
 
 const STATUS_LABEL = {
   reserved: "Reservado",
@@ -26,43 +33,13 @@ const DENSITY_CLASS = {
   spacious: "py-3.5",
 };
 
-function startOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
 function formatDate(value) {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("es-AR");
+  return formatDateOnly(value);
 }
 
-function formatInputDate(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
-
-function isToday(dateStr) {
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return false;
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  );
-}
-
-function parseInputDate(value) {
-  if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
+function isToday(value) {
+  return isSameDateOnly(value, todayDateOnly());
 }
 
 function formatPrice(value) {
@@ -81,7 +58,7 @@ function getDepositInfo(booking) {
   const isOverdue =
     status === "pending" &&
     dueDate &&
-    new Date(dueDate).getTime() < startOfToday().getTime();
+    new Date(dueDate).getTime() < todayDateOnly().getTime();
 
   if (!amount) {
     return {
@@ -192,6 +169,40 @@ export default function BookingsPage() {
 
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportBookings() {
+    setError("");
+    setExporting(true);
+    try {
+      const res = await fetch("/api/bookings/export");
+      if (res.status === 401) {
+        router.push("/auth/login");
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "No se pudieron exportar las reservas.");
+        return;
+      }
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") || "";
+      const filename =
+        disposition.match(/filename="([^"]+)"/)?.[1] || "veklo-reservas.csv";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      setError("Error inesperado al exportar las reservas.");
+    } finally {
+      setExporting(false);
+    }
+  }
   const [notice, setNotice] = useState("");
 
   // 🔎 filtros de tabla
@@ -213,8 +224,8 @@ export default function BookingsPage() {
   const [density, setDensity] = useState("comfortable");
   const searchInputRef = useRef(null);
 
-  const rangeCheckIn = parseInputDate(checkIn);
-  const rangeCheckOut = parseInputDate(checkOut);
+  const rangeCheckIn = parseDateOnly(checkIn);
+  const rangeCheckOut = parseDateOnly(checkOut);
   const hasValidAvailabilityRange =
     rangeCheckIn &&
     rangeCheckOut &&
@@ -571,8 +582,8 @@ export default function BookingsPage() {
 
   function startEditingBooking() {
     if (!selectedBooking) return;
-    setEditCheckIn(formatInputDate(selectedBooking.checkIn));
-    setEditCheckOut(formatInputDate(selectedBooking.checkOut));
+    setEditCheckIn(toDateKey(selectedBooking.checkIn));
+    setEditCheckOut(toDateKey(selectedBooking.checkOut));
     setEditStatus(selectedBooking.status || "reserved");
     setEditDepositAmount(String(selectedBooking.deposit?.amount || ""));
     setEditDepositPaymentLink(selectedBooking.deposit?.paymentLink || "");
@@ -713,6 +724,14 @@ export default function BookingsPage() {
             Administrá check-in, check-out y reservas de tus habitaciones.
           </p>
         </div>
+        <button
+          type="button"
+          onClick={handleExportBookings}
+          disabled={exporting}
+          className="self-start rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-[11px] text-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors sm:self-auto"
+        >
+          {exporting ? "Exportando..." : "Exportar CSV"}
+        </button>
       </div>
 
       {/* Selector de propiedad y habitación */}

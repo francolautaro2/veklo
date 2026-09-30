@@ -3,13 +3,10 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Property from "@/models/Property";
-import User from "@/models/User";
-import { getUserContextFromRequest } from "@/lib/auth";
+import { getAccessDeniedResponse, getUserContextFromRequest } from "@/lib/auth";
 import {
-  getAccessDeniedMessage,
   getPlanConfig,
   getPropertyLimitMessage,
-  hasAccountAccess,
 } from "@/lib/subscription";
 
 function toObjectId(value) {
@@ -57,26 +54,15 @@ export async function POST(request) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }
 
-  const account = await User.findById(user.id).select(
-    "plan subscriptionStatus trialEndsAt"
-  );
-  if (!account) {
-    return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
-  }
+  const denied = getAccessDeniedResponse(user);
+  if (denied) return denied;
 
-  if (!hasAccountAccess(account)) {
-    return NextResponse.json(
-      { error: getAccessDeniedMessage() },
-      { status: 402 }
-    );
-  }
-
-  const planConfig = getPlanConfig(account.plan);
+  const planConfig = getPlanConfig(user.plan);
   if (planConfig.maxProperties != null) {
     const propertiesCount = await Property.countDocuments(buildPropertyScope(user));
     if (propertiesCount >= planConfig.maxProperties) {
       return NextResponse.json(
-        { error: getPropertyLimitMessage(account.plan) },
+        { error: getPropertyLimitMessage(user.plan) },
         { status: 403 }
       );
     }
@@ -102,7 +88,8 @@ export async function POST(request) {
     });
 
     return NextResponse.json({ property }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error("[properties]", error);
     return NextResponse.json({ error: "Error al crear propiedad." }, { status: 400 });
   }
 }

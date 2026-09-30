@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { formatDateOnly } from "@/lib/date-only";
 
 export default function PreCheckInPage() {
   const params = useParams();
@@ -165,10 +166,10 @@ export default function PreCheckInPage() {
             {booking.propertyName} · {booking.roomName}
           </p>
           <p className="text-slate-400">
-            Check-in: {new Date(booking.checkIn).toLocaleDateString("es-AR")}
+            Check-in: {formatDateOnly(booking.checkIn)}
           </p>
           <p className="text-slate-400">
-            Check-out: {new Date(booking.checkOut).toLocaleDateString("es-AR")}
+            Check-out: {formatDateOnly(booking.checkOut)}
           </p>
           {booking.deposit?.status !== "not_required" && (
             <div className="pt-2 text-slate-300">
@@ -336,6 +337,19 @@ export default function PreCheckInPage() {
             >
               {saving ? "Guardando..." : "Confirmar pre check-in"}
             </button>
+            <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+              Tus datos los recibe {booking.propertyName} para gestionar tu
+              estadía, a través de veklo. Más información en nuestra{" "}
+              <a
+                href="/privacidad"
+                target="_blank"
+                rel="noreferrer"
+                className="text-emerald-400 hover:underline"
+              >
+                política de privacidad
+              </a>
+              .
+            </p>
           </div>
         </form>
       </div>

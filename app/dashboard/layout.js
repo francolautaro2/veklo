@@ -1,7 +1,9 @@
 // app/dashboard/layout.js
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getSessionUserFromCookies } from "@/lib/auth";
+import { hasAccountAccess, getAccessDeniedMessage } from "@/lib/subscription";
 import SidebarNav from "@/app/dashboard/_components/sidebar-nav";
 import MobileNav from "@/app/dashboard/_components/mobile-nav";
 import BrandLogo from "@/app/_components/brand-logo";
@@ -34,25 +36,49 @@ function getInitials(name, email) {
   return "US";
 }
 
-export default async function DashboardLayout({ children }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("hotel_saas_token")?.value;
-  const jwtSecret = process.env.JWT_SECRET;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-  let userEmail = "usuario@veklo.app";
-  let userName = "";
-  let initials = "US";
+// Aviso de prueba por vencer o cuenta sin acceso (prueba vencida / suscripción inactiva).
+function getAccountNotice(user) {
+  if (!hasAccountAccess(user)) {
+    return { tone: "danger", message: getAccessDeniedMessage(user), cta: "Elegir plan" };
+  }
 
-  if (token && jwtSecret) {
-    try {
-      const payload = jwt.verify(token, jwtSecret);
-      userEmail = payload.email || userEmail;
-      userName = payload.name || "";
-      initials = getInitials(userName, userEmail);
-    } catch {
-      // Si el token no es valido, mantenemos datos anonimos.
+  if (user.subscriptionStatus === "trialing" && user.trialEndsAt) {
+    const daysLeft = Math.ceil(
+      (new Date(user.trialEndsAt).getTime() - Date.now()) / DAY_MS
+    );
+    if (daysLeft <= 7) {
+      return {
+        tone: "warning",
+        message:
+          daysLeft <= 1
+            ? "Tu prueba gratuita termina hoy."
+            : `Te quedan ${daysLeft} días de prueba gratuita.`,
+        cta: "Elegir plan",
+      };
     }
   }
+
+  return null;
+}
+
+const NOTICE_CLASS = {
+  danger: "border-rose-500/40 bg-rose-500/10 text-rose-100",
+  warning: "border-amber-500/40 bg-amber-500/10 text-amber-100",
+};
+
+export default async function DashboardLayout({ children }) {
+  const user = await getSessionUserFromCookies(await cookies());
+  if (!user) {
+    // Sesión revocada o usuario inexistente: limpiamos la cookie y vamos al login.
+    redirect("/api/auth/logout");
+  }
+
+  const userEmail = user.email;
+  const userName = user.name;
+  const initials = getInitials(userName, userEmail);
+  const notice = getAccountNotice(user);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 antialiased md:pl-64">
@@ -146,7 +172,22 @@ export default async function DashboardLayout({ children }) {
 
         {/* Content */}
         <main className="flex-1">
-          <div className="max-w-6xl mx-auto px-4 py-6">{children}</div>
+          <div className="max-w-6xl mx-auto px-4 py-6">
+            {notice && (
+              <div
+                className={`mb-4 flex flex-col gap-2 rounded-xl border px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between ${NOTICE_CLASS[notice.tone]}`}
+              >
+                <p>{notice.message}</p>
+                <Link
+                  href="/dashboard/profile#suscripcion"
+                  className="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 font-semibold text-slate-950 hover:bg-emerald-400"
+                >
+                  {notice.cta}
+                </Link>
+              </div>
+            )}
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserContextFromRequest } from "@/lib/auth";
 
 function buildSafeBilling(user) {
   return {
@@ -18,7 +18,7 @@ function buildSafeBilling(user) {
 export async function GET(request) {
   await dbConnect();
 
-  const sessionUser = getUserFromRequest(request);
+  const sessionUser = await getUserContextFromRequest(request);
   if (!sessionUser) {
     return NextResponse.json({ error: "No autenticado." }, { status: 401 });
   }

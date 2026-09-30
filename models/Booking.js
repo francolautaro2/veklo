@@ -136,6 +136,11 @@ const BookingSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+      // Cuándo se mandó el recordatorio automático (/api/cron/precheckin-reminders).
+      reminderSentAt: {
+        type: Date,
+        default: null,
+      },
       expiresAt: {
         type: Date,
         default: null,
